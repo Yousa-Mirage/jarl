@@ -1,0 +1,31 @@
+---
+source: crates/jarl-core/src/lints/base/regex_subset/mod.rs
+expression: "get_unsafe_fixed_text_with_settings(vec![\"x[grep(pattern, x)]\",\n\"x[grepl(pattern, x)]\", \"x[stringr::str_which(x, pattern)]\",\n\"x[stringr::str_detect(x, pattern)]\",], \"regex_subset\", Some(\"4.4\"), None,)"
+---
+OLD:
+====
+x[grep(pattern, x)]
+NEW:
+====
+grep(pattern, x, value = TRUE)
+
+OLD:
+====
+x[grepl(pattern, x)]
+NEW:
+====
+grep(pattern, x, value = TRUE)
+
+OLD:
+====
+x[stringr::str_which(x, pattern)]
+NEW:
+====
+stringr::str_subset(x, pattern)
+
+OLD:
+====
+x[stringr::str_detect(x, pattern)]
+NEW:
+====
+stringr::str_subset(x, pattern)

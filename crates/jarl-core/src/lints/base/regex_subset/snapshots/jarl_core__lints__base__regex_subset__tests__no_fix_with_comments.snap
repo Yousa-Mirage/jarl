@@ -1,0 +1,45 @@
+---
+source: crates/jarl-core/src/lints/base/regex_subset/mod.rs
+expression: "get_unsafe_fixed_text(vec![\"# leading comment\\nx[grep(pattern, x)]\",\n\"x[\\n  # comment\\n  grep(pattern, x)\\n]\",\n\"x[grep(\\n  # comment\\n  pattern, x\\n)]\",\n\"x[grep(pattern, x)] # trailing comment\",], \"regex_subset\",)"
+---
+OLD:
+====
+# leading comment
+x[grep(pattern, x)]
+NEW:
+====
+# leading comment
+grep(pattern, x, value = TRUE)
+
+OLD:
+====
+x[
+  # comment
+  grep(pattern, x)
+]
+NEW:
+====
+x[
+  # comment
+  grep(pattern, x)
+]
+
+OLD:
+====
+x[grep(
+  # comment
+  pattern, x
+)]
+NEW:
+====
+x[grep(
+  # comment
+  pattern, x
+)]
+
+OLD:
+====
+x[grep(pattern, x)] # trailing comment
+NEW:
+====
+grep(pattern, x, value = TRUE) # trailing comment

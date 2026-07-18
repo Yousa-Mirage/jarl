@@ -1,0 +1,52 @@
+---
+source: crates/jarl-core/src/lints/base/regex_subset/mod.rs
+expression: "get_unsafe_fixed_text_with_settings(vec![\"x[grep(pattern, x)]\",\n\"x[grepl(pattern, x)]\", \"x[grep(pattern, x, value = FALSE, fixed = TRUE)]\",\n\"x[grep(pattern, x, FALSE, FALSE, FALSE, TRUE, TRUE)]\",\n\"x[grepl(pattern, x, FALSE, FALSE, TRUE, TRUE)]\",\n\"x[stringr::str_which(x, pattern)]\", \"x[stringr::str_detect(x, pattern)]\",],\n\"regex_subset\", Some(\"4.5\"), None,)"
+---
+OLD:
+====
+x[grep(pattern, x)]
+NEW:
+====
+grepv(pattern, x)
+
+OLD:
+====
+x[grepl(pattern, x)]
+NEW:
+====
+grepv(pattern, x)
+
+OLD:
+====
+x[grep(pattern, x, value = FALSE, fixed = TRUE)]
+NEW:
+====
+grepv(pattern, x, value = TRUE, fixed = TRUE)
+
+OLD:
+====
+x[grep(pattern, x, FALSE, FALSE, FALSE, TRUE, TRUE)]
+NEW:
+====
+grepv(pattern, x, FALSE, FALSE, value = TRUE, TRUE, TRUE)
+
+OLD:
+====
+x[grepl(pattern, x, FALSE, FALSE, TRUE, TRUE)]
+NEW:
+====
+grepv(pattern, x, FALSE, FALSE, TRUE, TRUE, value = TRUE)
+
+OLD:
+====
+x[stringr::str_which(x, pattern)]
+NEW:
+====
+stringr::str_subset(x, pattern)
+
+OLD:
+====
+x[stringr::str_detect(x, pattern)]
+NEW:
+====
+stringr::str_subset(x, pattern)

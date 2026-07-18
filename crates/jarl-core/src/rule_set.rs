@@ -559,6 +559,13 @@ declare_rules! {
         fix: Safe,
         min_r_version: None,
     },
+    RegexSubset => {
+        name: "regex_subset",
+        categories: [Perf, Read],
+        default: Enabled,
+        fix: Unsafe,
+        min_r_version: None,
+    },
     Repeat => {
         name: "repeat",
         categories: [Read],
