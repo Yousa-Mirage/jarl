@@ -1,7 +1,7 @@
 use crate::diagnostic::*;
 use crate::utils::{get_function_name, node_contains_comments};
 use air_r_syntax::*;
-use biome_rowan::AstNode;
+use biome_rowan::{AstNode, Direction};
 
 /// Version added: 0.3.0
 ///
@@ -15,7 +15,9 @@ use biome_rowan::AstNode;
 /// Using `startsWith()` and `endsWith()` is both more readable and more efficient
 /// than extracting substrings and comparing them.
 ///
-/// This rule has a safe fix.
+/// This rule has an automated fix that is marked unsafe and therefore requires
+/// passing `--unsafe-fixes`. The replacement does not guarantee equivalent
+/// substring bounds, so it can change the behavior of the code.
 ///
 /// ## Example
 ///
@@ -54,6 +56,16 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     } else {
         return Ok(None);
     };
+
+    // The replacement functions take a string prefix or suffix. Restrict the
+    // rule to literal comparison strings instead of guessing about vectors or
+    // dynamically computed values.
+    if !string_expr
+        .as_any_r_value()
+        .is_some_and(|value| value.as_r_string_value().is_some())
+    {
+        return Ok(None);
+    }
 
     // Check if it's substr or substring
     let function = call.function()?;
@@ -215,7 +227,15 @@ fn is_nchar_of_same_expr(end_expr: &AnyRExpression, x_expr: &AnyRExpression) -> 
     expressions_match(&nchar_arg, x_expr)
 }
 
-/// Check if two expressions are syntactically identical
+/// Compare two expressions while ignoring comments and formatting trivia.
 fn expressions_match(expr1: &AnyRExpression, expr2: &AnyRExpression) -> bool {
-    expr1.syntax().text_trimmed() == expr2.syntax().text_trimmed()
+    let expression_tokens = |expression: &AnyRExpression| {
+        expression
+            .syntax()
+            .descendants_tokens(Direction::Next)
+            .map(|token| token.text_trimmed().to_string())
+            .collect::<String>()
+    };
+
+    expression_tokens(expr1) == expression_tokens(expr2)
 }

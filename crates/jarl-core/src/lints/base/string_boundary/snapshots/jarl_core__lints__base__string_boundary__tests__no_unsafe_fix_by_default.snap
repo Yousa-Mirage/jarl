@@ -1,0 +1,10 @@
+---
+source: crates/jarl-core/src/lints/base/string_boundary/mod.rs
+expression: "get_fixed_text(vec![\"substr(x, 1, 2) == 'abc'\"], \"string_boundary\", None)"
+---
+OLD:
+====
+substr(x, 1, 2) == 'abc'
+NEW:
+====
+substr(x, 1, 2) == 'abc'

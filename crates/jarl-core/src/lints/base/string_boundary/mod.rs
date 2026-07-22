@@ -50,6 +50,14 @@ mod tests {
         // Unknown object in `stop`
         expect_no_lint("substring(x, 2, y) == 'abcd'", "string_boundary", None);
 
+        // Only literal strings are supported as comparison targets.
+        expect_no_lint(
+            "substr(c('abc', 'def'), 1, 1) == c('a', 'a')",
+            "string_boundary",
+            None,
+        );
+        expect_no_lint("substr(x, 1, 2) == pattern", "string_boundary", None);
+
         // _close_ to equivalent, but not so in general -- e.g.
         //   substring(s <- "abcdefg", 2L) == "efg" is not TRUE, but endsWith(s, "efg")
         //   is. And if `s` contains strings of varying lengths, there's no equivalent.
@@ -183,24 +191,9 @@ mod tests {
         Found 1 error.
         "
         );
-        // comparing vectors
-        assert_snapshot!(
-            snapshot_lint("substr(c('abc', 'def'), 1, 1) == c('a', 'a')"),
-            @"
-        warning: string_boundary
-         --> <test>:1:1
-          |
-        1 | substr(c('abc', 'def'), 1, 1) == c('a', 'a')
-          | -------------------------------------------- Using `substr()` to detect an initial substring is hard to read and inefficient.
-          |
-          = help: Use `startsWith()` instead.
-        Found 1 error.
-        "
-        );
-
         assert_snapshot!(
             "fix_output",
-            get_fixed_text(
+            get_unsafe_fixed_text(
                 vec![
                     "substr(x, 1, 2) == 'ab'",
                     "substr(x, 1L, 2L) == 'ab'",
@@ -211,11 +204,36 @@ mod tests {
                     "substring(x, nchar(x) - 4L, nchar(x)) == 'abcde'",
                     "substring(x, start, nchar(x)) == 'abcde'",
                     "substring(colnames(x), start, nchar(colnames(x))) == 'abc'",
-                    "substr(c('abc', 'def'), 1, 1) == c('a', 'a')",
+                ],
+                "string_boundary"
+            )
+        );
+    }
+
+    #[test]
+    fn test_unsafe_fixes_string_boundary() {
+        assert_snapshot!(
+            "unsafe_fix_output",
+            get_unsafe_fixed_text(
+                vec![
+                    // The compared string is longer than the extracted prefix.
+                    "substr(x, 1, 2) == 'abc'",
+                    // The substring starts in the middle of `x` and may be longer
+                    // than the compared suffix.
+                    "substr(x, 3, nchar(x)) != 'ab'",
+                    // This compares the whole string, not an arbitrary suffix.
+                    "substring(x, 1, nchar(x)) == 'abcde'",
                 ],
                 "string_boundary",
-                None
             )
+        );
+    }
+
+    #[test]
+    fn test_string_boundary_does_not_apply_unsafe_fix_by_default() {
+        assert_snapshot!(
+            "no_unsafe_fix_by_default",
+            get_fixed_text(vec!["substr(x, 1, 2) == 'abc'"], "string_boundary", None)
         );
     }
 
@@ -239,15 +257,32 @@ mod tests {
         );
         assert_snapshot!(
             "no_fix_with_comments",
-            get_fixed_text(
+            get_unsafe_fixed_text(
                 vec![
                     "# leading comment\nsubstr(x, 1, 2) == 'ab'",
                     "substr(x, \n # a comment \n1, 2) == 'ab'",
                     "substr(x, 1, 2) == 'ab' # trailing comment",
+                    "substring(x, start, nchar(\n # a comment\n x\n)) == 'ab'",
                 ],
-                "string_boundary",
-                None
+                "string_boundary"
             )
+        );
+
+        assert_snapshot!(
+            snapshot_lint("substring(x, start, nchar(\n # a comment\n x\n)) == 'ab'"),
+            @"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substring(x, start, nchar(
+        2 | |  # a comment
+        3 | |  x
+        4 | | )) == 'ab'
+          | |__________- Using `substring()` to detect a terminal substring is hard to read and inefficient.
+          |
+          = help: Use `endsWith()` instead.
+        Found 1 error.
+        "
         );
     }
 }

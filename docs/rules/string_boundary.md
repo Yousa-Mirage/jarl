@@ -12,7 +12,9 @@ Checks for `substr()` and `substring()` calls that can be replaced with
 Using `startsWith()` and `endsWith()` is both more readable and more efficient
 than extracting substrings and comparing them.
 
-This rule has a safe fix.
+This rule has an automated fix that is marked unsafe and therefore requires
+passing `--unsafe-fixes`. The replacement does not guarantee equivalent
+substring bounds, so it can change the behavior of the code.
 
 ## Example
 

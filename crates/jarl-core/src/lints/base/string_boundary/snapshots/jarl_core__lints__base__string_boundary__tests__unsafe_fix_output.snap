@@ -1,0 +1,24 @@
+---
+source: crates/jarl-core/src/lints/base/string_boundary/mod.rs
+expression: "get_unsafe_fixed_text(vec![\"substr(x, 1, 2) == 'abc'\",\n\"substr(x, 3, nchar(x)) != 'ab'\", \"substring(x, 1, nchar(x)) == 'abcde'\",],\n\"string_boundary\",)"
+---
+OLD:
+====
+substr(x, 1, 2) == 'abc'
+NEW:
+====
+startsWith(x, 'abc')
+
+OLD:
+====
+substr(x, 3, nchar(x)) != 'ab'
+NEW:
+====
+!endsWith(x, 'ab')
+
+OLD:
+====
+substring(x, 1, nchar(x)) == 'abcde'
+NEW:
+====
+startsWith(x, 'abcde')
