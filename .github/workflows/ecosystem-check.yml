@@ -15,8 +15,10 @@ on:
       - crates/**/Cargo.toml
       - "!crates/jarl-lsp/**"
 
+# Ensure that modifying the PR body while the workflow is running doesn't
+# interrupt the workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ github.event.action != 'edited' || github.event.changes.base != null }}
   cancel-in-progress: true
 
 permissions:
