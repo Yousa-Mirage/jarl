@@ -6,9 +6,15 @@ use crate::status::ExitStatus;
 
 pub fn print_statistics(
     diagnostics: &[&Diagnostic],
+    has_errors: bool,
     parent_config_path: Option<PathBuf>,
 ) -> anyhow::Result<ExitStatus> {
+    // Parse errors are not rule diagnostics, but they still make the check fail.
     if diagnostics.is_empty() {
+        if has_errors {
+            return Ok(ExitStatus::Error);
+        }
+
         println!("All checks passed!");
         return Ok(ExitStatus::Success);
     }
@@ -57,5 +63,9 @@ pub fn print_statistics(
         println!("\nUsed '{}'", config_path.display());
     }
 
-    Ok(ExitStatus::Failure)
+    if has_errors {
+        Ok(ExitStatus::Error)
+    } else {
+        Ok(ExitStatus::Failure)
+    }
 }

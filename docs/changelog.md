@@ -83,6 +83,9 @@
 
 ### Bug fixes
 
+* `--statistics` now reports syntax errors and returns a non-zero status when
+  parsing fails (#577, @Yousa-Mirage).
+  
 * `--fix-only` now implies `--fix` and no longer applies unsafe fixes by default
   (#579, @Yousa-Mirage).
 
