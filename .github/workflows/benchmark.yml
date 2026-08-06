@@ -29,8 +29,9 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Used by process_bench_ci.R to label the reference branch in the report
-  BASE_REF: ${{ github.base_ref }}
+  # Prefer "github.event.pull_request.base.ref" over "github.base_ref" because
+  # the latter will use the base of the entire stack in stacked PRs.
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
   # Same repositories as ecosystem-check for consistency
   TEST_REPOS: |
     easystats/datawizard@7466ff6f91040e25f826b224a4ef5e9aeb63b567
@@ -96,8 +97,8 @@ jobs:
 
       - name: Build jarl binary from base branch
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git checkout origin/${{ github.base_ref }}
+          git fetch origin $BASE_REF
+          git checkout origin/$BASE_REF
           cargo build --release --package jarl
 
       - name: Save base binary path

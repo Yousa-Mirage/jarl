@@ -26,6 +26,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Prefer "github.event.pull_request.base.ref" over "github.base_ref" because
+  # the latter will use the base of the entire stack in stacked PRs.
+  BASE_REF: ${{ github.event.pull_request.base.ref }}
   TEST_REPOS: |
     # packages
     apache/arrow@ec56b377340feb8d46b289342b403aa489effaa1
@@ -104,8 +107,8 @@ jobs:
 
       - name: Build jarl binary from base branch
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git checkout origin/${{ github.base_ref }}
+          git fetch origin $BASE_REF
+          git checkout origin/$BASE_REF
           cargo build --release --package jarl
 
       - name: Save base binary path
