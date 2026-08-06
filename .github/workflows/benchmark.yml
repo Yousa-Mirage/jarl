@@ -28,7 +28,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
   # Prefer "github.event.pull_request.base.ref" over "github.base_ref" because
   # the latter will use the base of the entire stack in stacked PRs.
   BASE_REF: ${{ github.event.pull_request.base.ref }}
