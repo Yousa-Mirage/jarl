@@ -61,13 +61,17 @@ jobs:
       - name: Install hyperfine
         run: sudo apt install hyperfine
 
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          cache: false
+
+      # The cache is only written by "warm-cache.yml", which runs on main.
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          key: benchmark-pr
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+          shared-key: jarl-release
+          save-if: false
 
       - name: Set up R for package-specific rules and to process results
         uses: r-lib/actions/setup-r@v2.12.0
