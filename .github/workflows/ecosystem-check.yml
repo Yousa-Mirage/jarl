@@ -68,7 +68,7 @@ jobs:
     # For "edited" events, only run when the base branch was changed (not for
     # title/description edits).
     if: github.event.action != 'edited' || github.event.changes.base != null
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout PR head

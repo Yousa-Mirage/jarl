@@ -47,7 +47,7 @@ env:
 
 jobs:
   fix-check:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
@@ -124,7 +124,7 @@ jobs:
             echo "  [$repo_name] Lint after fixes done."
 
             echo "  [$repo_name] SHA snapshot 1..."
-            find "$repo_dir" \( -name '*.R' -o -name '*.r' \) -print0 | sort -z | xargs -0 cat | shasum -a 256 | cut -d' ' -f1 > "../results/${repo_dir}_sha1.txt"
+            find "$repo_dir" \( -name '*.R' -o -name '*.r' \) -print0 | sort -z | xargs -0 cat | sha256sum | cut -d' ' -f1 > "../results/${repo_dir}_sha1.txt"
             echo "  [$repo_name] SHA snapshot 1 done."
 
             echo "  [$repo_name] Applying fixes (2nd pass)..."
@@ -132,7 +132,7 @@ jobs:
             echo "  [$repo_name] Applying fixes (2nd pass) done."
 
             echo "  [$repo_name] SHA snapshot 2..."
-            find "$repo_dir" \( -name '*.R' -o -name '*.r' \) -print0 | sort -z | xargs -0 cat | shasum -a 256 | cut -d' ' -f1 > "../results/${repo_dir}_sha2.txt"
+            find "$repo_dir" \( -name '*.R' -o -name '*.r' \) -print0 | sort -z | xargs -0 cat | sha256sum | cut -d' ' -f1 > "../results/${repo_dir}_sha2.txt"
             echo "  [$repo_name] SHA snapshot 2 done."
 
             echo "=== [$repo_name] Finished ==="
