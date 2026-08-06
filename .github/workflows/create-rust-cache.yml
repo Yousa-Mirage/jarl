@@ -9,7 +9,7 @@ on:
     branches:
       - main
     paths:
-      - .github/workflows/warm-cache.yml
+      - .github/workflows/create-rust-cache.yml
       - Cargo.toml
       - Cargo.lock
       - crates/**
@@ -26,7 +26,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  warm-cache:
+  create-cache:
     runs-on: ubuntu-latest
 
     steps:
