@@ -84,10 +84,10 @@ jobs:
           R -e "install.packages(c('jsonlite'))"
 
       - name: Build jarl binary from PR
-        run: cargo build --release --package jarl
+        run: cargo build --profile ci --package jarl
 
       - name: Save binary path
-        run: echo "JARL=$(pwd)/target/release/jarl" >> $GITHUB_ENV
+        run: echo "JARL=$(pwd)/target/ci/jarl" >> $GITHUB_ENV
 
       - name: Clone all test repos
         run: |

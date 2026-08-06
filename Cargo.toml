@@ -48,3 +48,9 @@ lto = true
 inherits = "release"
 lto = "thin"
 
+# Faster build, used by CI checks that compare output but not performance 
+# (e.g. ecosystem checks).
+[profile.ci]
+inherits = "release"
+lto = false
+
