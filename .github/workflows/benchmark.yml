@@ -106,19 +106,23 @@ jobs:
 
       - name: Save base binary path
         run: echo "BASE_JARL=$(pwd)/target/release/jarl" >> $GITHUB_ENV
-
+        
       - name: Clone all test repos
         run: |
           mkdir -p test-repos
           cd test-repos
           for repo in $TEST_REPOS; do
+            # Skip category markers / comment words (only real entries have "@")
+            case "$repo" in
+              *@*) ;;
+              *) continue ;;
+            esac
+
             repo_name=$(echo "$repo" | cut -d'@' -f1)
             commit_sha=$(echo "$repo" | cut -d'@' -f2)
             repo_dir=$(echo "$repo_name" | tr '/' '_')
 
-            echo "Cloning $repo_name at $commit_sha..."
-            git clone --depth 1 https://github.com/$repo_name.git $repo_dir
-            (cd $repo_dir && git fetch --depth 1 origin $commit_sha && git checkout $commit_sha)
+            git clone --revision=$commit_sha --depth 1 https://github.com/$repo_name.git $(echo $repo_dir | tr '/' '_')
           done
 
       - name: Run hyperfine on all repos
