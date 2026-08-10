@@ -388,7 +388,7 @@
 
 ## 0.1.2
 
-::: {.callout-note icon=false title="Released on 2025-11-19" .low-opacity}
+::: {.callout-note icon=false title="Released on 2025-11-23" .low-opacity}
 :::
 
 ### Features
@@ -421,5 +421,8 @@
 - The docs of `assignment` rule now explain how to change the preferred assignment operator.
 
 ## 0.1.0
+
+::: {.callout-note icon=false title="Released on 2025-11-19" .low-opacity}
+:::
 
 First release (announced)
