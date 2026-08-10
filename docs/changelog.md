@@ -119,6 +119,9 @@
 
 ## 0.5.0
 
+::: {.callout-note icon=false title="Released on 2026-03-24" .low-opacity}
+:::
+
 ### Deprecations
 
 * The command-line argument `--assignment` and the `jarl.toml` argument `assignment`
@@ -204,6 +207,9 @@
 * Fix a wrong parsing error when using `next()` or `break()` (#417).
 
 ## 0.4.0
+
+::: {.callout-note icon=false title="Released on 2026-02-05" .low-opacity}
+:::
 
 ### Breaking changes
 
@@ -294,6 +300,9 @@
 
 ## 0.3.0
 
+::: {.callout-note icon=false title="Released on 2025-12-17" .low-opacity}
+:::
+
 ### Breaking changes
 
 - Jarl now excludes by default file paths matching the following patterns:
@@ -338,11 +347,17 @@
 
 ## 0.2.1
 
+::: {.callout-note icon=false title="Released on 2025-11-29" .low-opacity}
+:::
+
 ### Other
 
 - Important performance improvement when using `--fix`, in particular in projects with many R files (#217).
 
 ## 0.2.0
+
+::: {.callout-note icon=false title="Released on 2025-11-28" .low-opacity}
+:::
 
 ### Breaking changes
 
@@ -373,6 +388,9 @@
 
 ## 0.1.2
 
+::: {.callout-note icon=false title="Released on 2025-11-19" .low-opacity}
+:::
+
 ### Features
 
 - Added support for `list2df` rule (#179).
@@ -389,6 +407,9 @@
 - Added installation instructions using Scoop on Windows.
 
 ## 0.1.1
+
+::: {.callout-note icon=false title="Released on 2025-11-20" .low-opacity}
+:::
 
 ### Fixes
 
