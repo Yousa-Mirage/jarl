@@ -887,4 +887,103 @@ for (i in 1:2) {
         "
         );
     }
+
+    #[test]
+    fn test_assignment_inside_nse_is_not_definition() {
+        // `x <- 2` inside `quote()` is quoted code, not a real assignment.
+        expect_no_lint("as.call(quote(x <- 2))", "unused_object", None);
+        expect_no_lint("substitute(y <- 1)", "unused_object", None);
+    }
+
+    #[test]
+    fn test_assignment_inside_alist_is_not_definition() {
+        // `alist()` stores its arguments unevaluated (as if describing
+        // function arguments), so `x <- 1` is captured code, not a real
+        // assignment of `x`.
+        expect_no_lint("alist(x <- 1)", "unused_object", None);
+    }
+
+    #[test]
+    fn test_mention_inside_alist_is_not_used() {
+        assert_snapshot!(snapshot_lint("x <- 1\nalist(x)"), @"
+        warning: unused_object
+         --> <test>:1:1
+          |
+        1 | x <- 1
+          | - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        ");
+    }
+
+    #[test]
+    fn test_nse_assignment_does_not_shadow_real_definition() {
+        // The quoted `x <- 2` must not kill the real `x <- 1`; `print(x)`
+        // reads the live binding (which is still `1`).
+        expect_no_lint(
+            "x <- 1\nsubstitute(x <- 2)\nprint(x)",
+            "unused_object",
+            None,
+        );
+    }
+
+    #[test]
+    fn test_nse_assignment_in_expression_does_not_shadow_real_definition() {
+        // Same as above for `expression()`, which oak's registry doesn't
+        // model: the quoted `x <- 2` enters the index and shadows `x <- 1`,
+        // so the read has to be credited back to the real definition.
+        expect_no_lint(
+            "x <- 1\nexpression(x <- 2)\nprint(x)",
+            "unused_object",
+            None,
+        );
+        // Nothing to credit when the shadowed symbol has no real definition
+        // before it: the read resolves to quoted code only, and no phantom
+        // diagnostic comes out of it.
+        expect_no_lint("expression(x <- 2)\nprint(x)", "unused_object", None);
+        // Only the nearest real definition is credited; `x <- 1` stays dead.
+        assert_snapshot!(
+            snapshot_lint("x <- 1\nx <- 2\nexpression(x <- 3)\nprint(x)"),
+            @r"
+        warning: unused_object
+         --> <test>:1:1
+          |
+        1 | x <- 1
+          | - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        "
+        );
+    }
+
+    #[test]
+    fn test_namespace_qualified_quoting_call_is_nse() {
+        // `methods::Quote(x)` quotes `x` just like a bare `Quote(x)`, so the
+        // mention doesn't keep the binding alive.
+        assert_snapshot!(
+            snapshot_lint("x <- 1\nmethods::Quote(x)"),
+            @r"
+        warning: unused_object
+         --> <test>:1:1
+          |
+        1 | x <- 1
+          | - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        "
+        );
+        // A namespaced call that isn't a quoting call still reads its
+        // argument.
+        expect_no_lint("x <- 1\nbase::print(x)", "unused_object", None);
+    }
+
+    #[test]
+    fn test_equal_in_formula_is_not_definition() {
+        expect_no_lint(
+            "
+        a ~ b + (c = 1)",
+            "unused_object",
+            None,
+        );
+    }
 }
