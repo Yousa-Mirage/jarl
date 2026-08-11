@@ -15,10 +15,11 @@ use std::collections::HashSet;
 use air_r_parser::RParserOptions;
 use air_r_syntax::{
     AnyRArgumentName, AnyRExpression, RArgument, RArgumentList, RBinaryExpression, RCall,
-    RExtractExpression, RNamespaceExpression, RSyntaxKind, RSyntaxNode,
+    RExtractExpression, RForStatement, RNamespaceExpression, RStringValue, RSyntaxKind,
+    RSyntaxNode,
 };
 use biome_rowan::{AstNode, AstSeparatedList, SyntaxNodeCast, TextRange, TextSize};
-use oak_core::syntax_ext::RIdentifierExt;
+use oak_core::syntax_ext::{RIdentifierExt, RStringValueExt};
 use oak_semantic::DefinitionId;
 use oak_semantic::semantic_index::{Definition, DefinitionKind, ScopeId, SemanticIndex};
 
@@ -29,6 +30,18 @@ pub struct SemanticInfo<'a> {
     /// Root syntax node of the analyzed file. Needed to resolve
     /// `AstPtr` references stored in [`DefinitionKind`] back to nodes.
     root: RSyntaxNode,
+    /// Names that have a synthetic use from AST passes (`do.call("f", …)`,
+    /// `..cols`, `on.exit` bodies, custom infix operators). A definition whose
+    /// symbol name is in this set is treated as used.
+    synthetic_used_names: HashSet<String>,
+    /// Assignments sitting inside a short-circuit operand (`cond || (x <- 2)`),
+    /// stored as `(name, assignment range)` and resolved in
+    /// [`Self::precompute_short_circuit_defs`].
+    short_circuit_defs: Vec<(String, TextRange)>,
+    /// Ranges re-entered by a loop's back edge, used in
+    /// [`Self::precompute_loop_back_edges`]: the whole statement for
+    /// `while`/`repeat`, only the body for `for`.
+    loop_ranges: Vec<TextRange>,
     /// Position-aware reads collected by the AST pass: string interpolation
     /// (`glue("{x}")`, cli markup, custom delimiters). Stored as
     /// `(name, read range)` pairs and resolved in
@@ -64,6 +77,9 @@ impl<'a> SemanticInfo<'a> {
         let mut this = Self {
             index,
             root: root.clone(),
+            synthetic_used_names: HashSet::new(),
+            short_circuit_defs: Vec::new(),
+            loop_ranges: Vec::new(),
             positional_uses: Vec::new(),
             nse_ranges: Vec::new(),
             formula_ranges: Vec::new(),
@@ -72,7 +88,9 @@ impl<'a> SemanticInfo<'a> {
         this.collect_ast_passes(expressions);
         let scopes = this.scope_ids();
         this.precompute_reaching_uses(&scopes);
+        this.precompute_loop_back_edges(&scopes);
         this.precompute_positional_uses();
+        this.precompute_short_circuit_defs();
         this
     }
 
@@ -91,14 +109,19 @@ impl<'a> SemanticInfo<'a> {
 
     // ── High-level queries ────────────────────────────────────────────
 
-    /// True if a reaching use (local or via a nested closure) consumes this
-    /// definition.
+    /// True if any of the supported "is used" conditions hold for this
+    /// definition: synthetic AST-derived use, or a reaching use (local or via
+    /// a nested closure).
     pub fn is_definition_used(
         &self,
         scope_id: ScopeId,
         def_id: DefinitionId,
-        _def: &Definition,
+        def: &Definition,
     ) -> bool {
+        let symbol_name = self.index.symbols(scope_id).symbol(def.symbol()).name();
+        if self.synthetic_used_names.contains(symbol_name) {
+            return true;
+        }
         if self.reaching_used.contains(&(scope_id, def_id)) {
             return true;
         }
@@ -109,6 +132,10 @@ impl<'a> SemanticInfo<'a> {
 
     pub fn is_in_formula(&self, range: TextRange) -> bool {
         in_any_range(range, &self.formula_ranges)
+    }
+
+    pub fn has_synthetic_use(&self, name: &str) -> bool {
+        self.synthetic_used_names.contains(name)
     }
 
     /// True when `range` sits in a quoted NSE context (`substitute(...)`,
@@ -139,12 +166,45 @@ impl<'a> SemanticInfo<'a> {
                     self.visit_call(&call);
                 }
             }
+            RSyntaxKind::R_DOT_DOT_I => self.collect_dotdot_identifier(node),
+            RSyntaxKind::R_IDENTIFIER => self.collect_dotdot_identifier(node),
             RSyntaxKind::R_BINARY_EXPRESSION => {
                 if let Some(bin) = node.clone().cast::<RBinaryExpression>() {
                     self.visit_binary(&bin);
                 }
             }
+            // A `while` condition is re-evaluated on every iteration, so it
+            // belongs to the back edge; a `for` sequence is evaluated once
+            // before the loop starts, so only its body does.
+            RSyntaxKind::R_WHILE_STATEMENT | RSyntaxKind::R_REPEAT_STATEMENT => {
+                self.loop_ranges.push(node.text_trimmed_range());
+            }
+            RSyntaxKind::R_FOR_STATEMENT => {
+                if let Some(body) = node
+                    .clone()
+                    .cast::<RForStatement>()
+                    .and_then(|stmt| stmt.body().ok())
+                {
+                    self.loop_ranges.push(body.syntax().text_trimmed_range());
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn collect_dotdot_identifier(&mut self, node: &RSyntaxNode) {
+        let Some(token) = node.first_token() else {
+            return;
+        };
+        let text = token.text_trimmed();
+        if let Some(stripped) = text.strip_prefix("..")
+            && !stripped.is_empty()
+            && stripped
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '.')
+        {
+            self.synthetic_used_names.insert(stripped.to_string());
         }
     }
 
@@ -276,6 +336,31 @@ impl<'a> SemanticInfo<'a> {
         // is deliberately not added to `nse_ranges`.
         if op_text == "~" {
             self.formula_ranges.push(bin.syntax().text_trimmed_range());
+            return;
+        }
+
+        // Custom infix operators (`a %op% b`): oak doesn't model the operator
+        // as a use of the `%op%` binding, so an operator whose only reference
+        // is at a call site would look unused. Record the operator name as a
+        // synthetic use. Only user-defined `%...%` bindings can match; R's
+        // built-in operators have no local definition to keep alive.
+        if op_text.starts_with('%') && op_text.ends_with('%') {
+            self.synthetic_used_names.insert(op_text.to_string());
+        }
+
+        // Short-circuit operators: `cond || (x <- 2)` may skip the assignment
+        // entirely, so prior defs of `x` should remain alive. Record the
+        // assignment; `precompute_short_circuit_defs` resolves which earlier
+        // definitions it keeps alive.
+        if op_text == "||" || op_text == "&&" || op_text == "|" || op_text == "&" {
+            for descendant in bin.syntax().descendants() {
+                if descendant.kind() == RSyntaxKind::R_BINARY_EXPRESSION
+                    && let Some(name) = assignment_lhs_name(&descendant)
+                {
+                    self.short_circuit_defs
+                        .push((name, descendant.text_trimmed_range()));
+                }
+            }
         }
     }
 
@@ -310,7 +395,30 @@ impl<'a> SemanticInfo<'a> {
                     self.nse_ranges.push(value.text_trimmed_range());
                 }
             }
+            "do.call" | "match.fun" | "Recall" | "getFunction" => {
+                if let Some((_, first)) = arg_values.first()
+                    && let Some(s) = string_literal_value(first)
+                {
+                    self.synthetic_used_names.insert(s);
+                }
+            }
+            "on.exit" => {
+                if let Some((_, body)) = arg_values.first() {
+                    self.collect_on_exit_uses(body);
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn collect_on_exit_uses(&mut self, body: &RSyntaxNode) {
+        for node in body.descendants() {
+            if node.kind() == RSyntaxKind::R_IDENTIFIER
+                && let Some(token) = node.first_token()
+            {
+                self.synthetic_used_names
+                    .insert(token.text_trimmed().to_string());
+            }
         }
     }
 
@@ -380,6 +488,127 @@ impl<'a> SemanticInfo<'a> {
             }
         }
         best.map(|(id, _)| id)
+    }
+
+    /// Model the loop back edge: at the end of an iteration control jumps
+    /// back to the top of the loop, so an assignment inside a loop can be read
+    /// by a use sitting *earlier* in that loop — the condition (`while (x) { x
+    /// <- f() }`) or an earlier body statement (`for (i in is) { g(x); x <-
+    /// h(i) }`). Oak walks the file in textual order and only connects a
+    /// definition to later uses, so those reads are missed.
+    ///
+    /// For every use inside a loop, mark the definitions of the same name that
+    /// sit after it but still inside that loop: those are what the next
+    /// iteration reads. A definition the loop never reads back is left alone,
+    /// so `for (x in 1:3) { y <- x + 1 }` still reports `y`.
+    fn precompute_loop_back_edges(&mut self, scopes: &[ScopeId]) {
+        if self.loop_ranges.is_empty() {
+            return;
+        }
+        let index = self.index;
+        // Collect first: marking borrows `self` mutably.
+        let mut back_edges: Vec<(&str, ScopeId, TextSize, TextRange)> = Vec::new();
+        for &scope_id in scopes {
+            let symbols = index.symbols(scope_id);
+            for (_, u) in index.uses(scope_id).iter() {
+                if self.is_in_nse(u.range()) {
+                    continue;
+                }
+                // Nested loops: the back edge of every enclosing loop can feed
+                // this use, so consider all the loops it sits in.
+                for loop_range in self
+                    .loop_ranges
+                    .iter()
+                    .filter(|range| range.contains_range(u.range()))
+                {
+                    let name = symbols.symbol(u.symbol()).name();
+                    back_edges.push((name, scope_id, u.range().start(), *loop_range));
+                }
+            }
+        }
+        for (name, scope_id, pos, loop_range) in back_edges {
+            self.mark_loop_back_edge(name, scope_id, pos, loop_range);
+        }
+    }
+
+    /// Mark the definitions of `name` that the use at `pos` reads on a later
+    /// iteration of the loop spanning `loop_range`: those that follow the use
+    /// but stay inside the loop.
+    ///
+    /// Walks outward from the reading scope like an ordinary lookup and stops
+    /// at the first scope binding `name` — whether before the use (what the
+    /// first iteration reads) or later inside the loop (what the next ones
+    /// read).
+    fn mark_loop_back_edge(
+        &mut self,
+        name: &str,
+        use_scope: ScopeId,
+        pos: TextSize,
+        loop_range: TextRange,
+    ) {
+        let index = self.index;
+        for owner in index.ancestor_scope_ids(use_scope) {
+            let Some(symbol_id) = index.symbols(owner).id(name) else {
+                continue;
+            };
+            let mut binds = false;
+            let mut back_edge_defs = Vec::new();
+            for (def_id, def) in index.definitions(owner).iter() {
+                if def.symbol() != symbol_id || self.is_in_nse(def.range()) {
+                    continue;
+                }
+                if def.range().start() < pos {
+                    binds = true;
+                } else if loop_range.contains_range(def.range()) {
+                    binds = true;
+                    back_edge_defs.push(def_id);
+                }
+            }
+            // `name` may be referenced but not bound in this scope; if so, keep
+            // walking outward to the scope whose binding the read consumes.
+            if !binds {
+                continue;
+            }
+            for def_id in back_edge_defs {
+                self.reaching_used.insert((owner, def_id));
+            }
+            return;
+        }
+    }
+
+    /// Model a short-circuit operand not running: a read after `cond || (x <-
+    /// 2)` may still see whatever `x` was bound to before it. Oak walks
+    /// linearly and resolves that read to the conditional definition only, so
+    /// when the conditional definition turns out to be read, mark the earlier
+    /// definitions the read may reach instead — exactly the ones a position-
+    /// aware read sitting at the assignment would consume.
+    ///
+    /// A conditional definition nothing ever reads keeps no one alive, so
+    /// `if (cond && (y <- 1) > 2)` still reports `y`. Runs last: the read that
+    /// justifies it may itself be an interpolation resolved by
+    /// [`Self::precompute_positional_uses`].
+    fn precompute_short_circuit_defs(&mut self) {
+        let defs = std::mem::take(&mut self.short_circuit_defs);
+        for (name, range) in &defs {
+            if self.short_circuit_def_is_used(name, *range) {
+                self.mark_positional_use(name, range.start());
+            }
+        }
+    }
+
+    /// True when the assignment of `name` spanning `range` produces a
+    /// definition that some use reaches.
+    fn short_circuit_def_is_used(&self, name: &str, range: TextRange) -> bool {
+        let index = self.index;
+        let (scope, _) = index.scope_at(range.start());
+        let Some(symbol_id) = index.symbols(scope).id(name) else {
+            return false;
+        };
+        index.definitions(scope).iter().any(|(def_id, def)| {
+            def.symbol() == symbol_id
+                && range.contains_range(def.range())
+                && self.reaching_used.contains(&(scope, def_id))
+        })
     }
 
     /// Resolve each position-aware read (interpolation) to the definition(s)
@@ -694,6 +923,10 @@ fn argument_name(arg: &RArgument) -> Option<String> {
         AnyRArgumentName::RDots(_) => Some("...".to_string()),
         _ => None,
     }
+}
+
+fn string_literal_value(node: &RSyntaxNode) -> Option<String> {
+    node.clone().cast::<RStringValue>()?.string_text()
 }
 
 /// True if the value assigned by this binary assignment is a function
