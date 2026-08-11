@@ -1295,6 +1295,52 @@ for (i in 1:3) {
     }
 
     #[test]
+    fn test_defer_keeps_object_alive() {
+        for call in [
+            "defer(print(a))",
+            "withr::defer(print(a))",
+            "rlang::defer(print(a))",
+        ] {
+            expect_no_lint(
+                &format!(
+                    "
+        f <- function() {{
+            a <- 1
+            {call}
+        }}
+        "
+                ),
+                "unused_object",
+                None,
+            );
+        }
+    }
+
+    #[test]
+    fn test_on_exit_member_name_reports() {
+        assert_snapshot!(
+            snapshot_lint(
+                "
+f <- function() {
+    df <- data.frame()
+    x <- 1
+    on.exit(print(df$x))
+}
+        "
+            ),
+            @"
+        warning: unused_object
+         --> <test>:4:5
+          |
+        4 |     x <- 1
+          |     - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        "
+        );
+    }
+
+    #[test]
     fn test_with_on_exit() {
         // no lint when on.exit() refers to objects defined after it's called
         expect_no_lint(
