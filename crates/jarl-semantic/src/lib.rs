@@ -155,6 +155,10 @@ pub struct SemanticInfo<'a> {
     available_packages: HashSet<String>,
     /// Ranges of formula RHSes (`~ rhs`).
     formula_ranges: Vec<TextRange>,
+    /// Whether any package providing `{...}` interpolation is in reach.
+    /// Computed once so a file that uses none of them skips the ancestor walk
+    /// [`interpolation_flavor`] does for every string literal.
+    has_any_interpolation_package: bool,
     /// Definitions reached by some non-NSE use anywhere in the file. Computed
     /// from oak's `reaching_definitions`, which resolves both local uses and
     /// free-variable uses in nested closures (via enclosing snapshots).
@@ -182,6 +186,9 @@ impl<'a> SemanticInfo<'a> {
                 .iter()
                 .map(|access| access.package().to_string()),
         );
+        let has_any_interpolation_package = INTERPOLATION_PACKAGES
+            .iter()
+            .any(|package| available_packages.contains(*package));
         let mut this = Self {
             index,
             root: root.clone(),
@@ -193,11 +200,12 @@ impl<'a> SemanticInfo<'a> {
             nse_ranges: Vec::new(),
             available_packages,
             formula_ranges: Vec::new(),
+            has_any_interpolation_package,
             reaching_used: HashSet::new(),
         };
         this.collect_ast_passes(expressions);
         this.collect_sourced_file_uses();
-        let scopes = this.scope_ids();
+        let scopes: Vec<ScopeId> = this.scope_ids().collect();
         this.precompute_reaching_uses(&scopes);
         // Before `precompute_positional_uses`, which consumes
         // `positional_uses`: the back-edge pass reads that list too, since an
@@ -209,17 +217,14 @@ impl<'a> SemanticInfo<'a> {
         this
     }
 
-    pub fn index(&self) -> &SemanticIndex {
-        self.index
-    }
-
     pub fn root(&self) -> &RSyntaxNode {
         &self.root
     }
 
-    /// Walk all scopes (root + descendants) in arbitrary order.
-    pub fn scope_ids(&self) -> Vec<ScopeId> {
-        self.index.scope_ids().collect()
+    /// Walk all scopes (root + descendants), in source order with the file
+    /// scope first — the order oak's index guarantees.
+    pub fn scope_ids(&self) -> impl Iterator<Item = ScopeId> + '_ {
+        self.index.scope_ids()
     }
 
     // ── High-level queries ────────────────────────────────────────────
@@ -273,7 +278,6 @@ impl<'a> SemanticInfo<'a> {
                     self.visit_call(&call);
                 }
             }
-            RSyntaxKind::R_DOT_DOT_I => self.collect_dotdot_identifier(node),
             RSyntaxKind::R_IDENTIFIER => self.collect_dotdot_identifier(node),
             RSyntaxKind::R_BINARY_EXPRESSION => {
                 if let Some(bin) = node.clone().cast::<RBinaryExpression>() {
@@ -299,6 +303,8 @@ impl<'a> SemanticInfo<'a> {
         }
     }
 
+    /// Only reached for `R_IDENTIFIER`: the lexer reserves `R_DOT_DOT_I` for
+    /// `..<digits>` (`..1`), so `..cols` arrives here as a plain identifier.
     fn collect_dotdot_identifier(&mut self, node: &RSyntaxNode) {
         // `dt[, ..cols]` is data.table's "resolve this name in the calling
         // frame" prefix. Anywhere else `..cols` is just an identifier, and
@@ -311,7 +317,6 @@ impl<'a> SemanticInfo<'a> {
         };
         let text = token.text_trimmed();
         if let Some(stripped) = text.strip_prefix("..")
-            && !stripped.is_empty()
             && stripped
                 .chars()
                 .next()
@@ -329,6 +334,10 @@ impl<'a> SemanticInfo<'a> {
         // `message("{x}")` is literal text and reads nothing. And the idiom
         // only applies when the package providing it is in reach, so
         // `glue("{x}")` in a file that never mentions glue stays literal too.
+        // That last check is cheapest, so it comes first.
+        if !self.has_any_interpolation_package {
+            return;
+        }
         let Some((flavor, package)) = interpolation_flavor(node) else {
             return;
         };
@@ -1052,6 +1061,11 @@ fn named_string_arg(args: &[RArgument], name: &str) -> Option<String> {
     strings::get_string_literal_contents(&node.text_trimmed().to_string())
 }
 
+/// Packages whose functions interpolate `{...}` in their string arguments.
+/// Kept in sync with [`glue_interpolation_package`] and
+/// [`is_cli_markup_function`], which decide *which* of them applies.
+const INTERPOLATION_PACKAGES: &[&str] = &["glue", "stringr", "cli"];
+
 /// The interpolation dialect a string literal is written in.
 #[derive(Clone, Copy)]
 enum InterpolationFlavor {
@@ -1319,6 +1333,17 @@ fn resolve_sourced_path(current_file: &std::path::Path, path: &str) -> Option<st
     }
 }
 
+/// Packages whose effect annotations jarl resolves even without a `library()`
+/// call in the file, in shadowing order (base last). Effects power oak's NSE
+/// model — `quote()` dropping its argument from the index, `local()` opening a
+/// scope, `x %<>% f()` binding `x` — and jarl is deliberately lenient about
+/// attachment, mirroring how it treats e.g. `test_that()` without requiring
+/// `library(testthat)`. S7 is deliberately absent: resolving its `:=` operator
+/// would turn data.table's column assignment (`DT[, x := y]`) into a variable
+/// binding; S7 users still get it through an explicit `library(S7)` entering
+/// the attached set.
+const DEFAULT_EFFECT_PACKAGES: &[&str] = &["magrittr", "rlang", "testthat", "shiny", "base"];
+
 /// `ImportsResolver` impl that plugs `source("path")` injection and effect
 /// resolution into oak's builder.
 ///
@@ -1369,17 +1394,6 @@ impl JarlImportsResolver {
         }
     }
 }
-
-/// Packages whose effect annotations jarl resolves even without a `library()`
-/// call in the file, in shadowing order (base last). Effects power oak's NSE
-/// model — `quote()` dropping its argument from the index, `local()` opening a
-/// scope, `x %<>% f()` binding `x` — and jarl is deliberately lenient about
-/// attachment, mirroring how it treats e.g. `test_that()` without requiring
-/// `library(testthat)`. S7 is deliberately absent: resolving its `:=` operator
-/// would turn data.table's column assignment (`DT[, x := y]`) into a variable
-/// binding; S7 users still get it through an explicit `library(S7)` entering
-/// the attached set.
-const DEFAULT_EFFECT_PACKAGES: &[&str] = &["magrittr", "rlang", "testthat", "shiny", "base"];
 
 impl oak_semantic::ImportsResolver for JarlImportsResolver {
     fn resolve_effects(
