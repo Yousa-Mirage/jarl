@@ -14,10 +14,11 @@ use crate::lints::base::duplicated_function_definition::duplicated_function_defi
     compute_duplicates_from_shared, scan_top_level_assignments,
 };
 use crate::lints::base::unused_function::unused_function::{
-    collect_files, compute_unused_from_shared, has_cpp_extension, scan_symbols,
+    collect_files, compute_unused_from_shared, has_cpp_extension,
 };
 use crate::namespace::{parse_namespace_exports, parse_namespace_imports};
 use crate::rule_set::Rule;
+use crate::utils::scan_symbols;
 
 /// Scope of a file within an R package, determining how its definitions
 /// are checked for unused functions.
@@ -106,6 +107,12 @@ pub struct PackageAnalysis {
 pub struct PackageFileAnalysis {
     pub duplicate_assignments: Vec<(String, TextRange, String)>,
     pub unused_functions: Vec<(String, TextRange, String)>,
+    /// Top-level names read from outside the code being linted. For an R file
+    /// that is [`PackageAnalysis::cross_file_used`]; for an Rmd/Qmd document,
+    /// where only the R chunks are linted, it is instead the names read by the
+    /// rest of the document (see [`crate::check`]). Both are the same question
+    /// for `unused_object`: is this top-level binding read somewhere the file's
+    /// own analysis can't see?
     pub cross_file_used: HashSet<String>,
 }
 
