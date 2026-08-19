@@ -57,15 +57,15 @@ use crate::package::{FileScope, SharedFileData};
 /// # `check_length()` isn't exported but and isn't used anywhere, so it is
 /// # reported.
 /// ```
-///
-/// ## Implementation
-///
-/// Operates on the already-scanned `SharedFileData` of a package rather than
-/// reading its files again, and looks symbols up across files in O(1) through
-/// the pre-computed frequency maps.
-///
-/// `namespace_contents` maps package root paths to their NAMESPACE file
-/// contents. Packages without a NAMESPACE entry are skipped.
+
+// ## Implementation
+//
+// Operates on the already-scanned `SharedFileData` of a package rather than
+// reading its files again, and looks symbols up across files in O(1) through
+// the pre-computed frequency maps.
+//
+// `namespace_contents` maps package root paths to their NAMESPACE file
+// contents. Packages without a NAMESPACE entry are skipped.
 pub(crate) fn compute_unused_from_shared(
     shared_data: &[SharedFileData],
     options: &crate::lints::base::unused_function::options::ResolvedUnusedFunctionOptions,
