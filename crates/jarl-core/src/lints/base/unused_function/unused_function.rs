@@ -57,7 +57,6 @@ use crate::package::{FileScope, SharedFileData};
 /// # `check_length()` isn't exported but and isn't used anywhere, so it is
 /// # reported.
 /// ```
-
 // ## Implementation
 //
 // Operates on the already-scanned `SharedFileData` of a package rather than

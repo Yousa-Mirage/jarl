@@ -52,4 +52,3 @@ check_length <- function(x, y) {
 # `check_length()` isn't exported but and isn't used anywhere, so it is
 # reported.
 ```
-
