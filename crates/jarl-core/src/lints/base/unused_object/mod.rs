@@ -1,11 +1,29 @@
+pub(crate) mod options;
 pub(crate) mod unused_object;
 #[cfg(test)]
 mod tests {
+    use crate::lints::base::unused_object::options::ResolvedUnusedObjectOptions;
+    use crate::lints::base::unused_object::options::UnusedObjectOptions;
+    use crate::rule_options::ResolvedRuleOptions;
+    use crate::settings::{LinterSettings, Settings};
     use crate::utils_test::*;
     use insta::assert_snapshot;
 
     fn snapshot_lint(code: &str) -> String {
         format_diagnostics(code, "unused_object", None)
+    }
+
+    /// Build a `Settings` with custom `UnusedObjectOptions`.
+    fn settings_with_options(options: UnusedObjectOptions) -> Settings {
+        Settings {
+            linter: LinterSettings {
+                rule_options: ResolvedRuleOptions {
+                    unused_object: ResolvedUnusedObjectOptions::resolve(Some(&options)).unwrap(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        }
     }
 
     /// Renders the `unused_object` diagnostics produced by linting `main_path`
@@ -2316,6 +2334,142 @@ while (cond) {
                 &[("helper.R", "if (interactive()) x <- 2\nprint(x)\n")],
             ),
             @"All checks passed!"
+        );
+    }
+
+    #[test]
+    fn test_no_lint_assignment_in_condition_expectation() {
+        // The assignment is what the expectation runs, so never reading the
+        // binding is the point of the test.
+        expect_no_lint(
+            "
+  expect_error(x <- stop(\"boom\"))
+",
+            "unused_object",
+            None,
+        );
+    }
+
+    #[test]
+    fn test_no_lint_assignment_in_namespaced_condition_expectation() {
+        expect_no_lint(
+            "
+testthat::expect_no_error(x <- 1)
+",
+            "unused_object",
+            None,
+        );
+    }
+
+    #[test]
+    fn test_no_lint_assignment_in_named_condition_expectation_argument() {
+        expect_no_lint(
+            "
+expect_error(object = x <- foo, regexp = \"boom\")
+",
+            "unused_object",
+            None,
+        );
+    }
+
+    #[test]
+    fn test_lint_assignment_nested_in_condition_expectation() {
+        // Only the direct argument position is exempt: a block or a function
+        // defined inside the expectation holds ordinary locals.
+        assert_snapshot!(
+            snapshot_lint(
+                "
+expect_snapshot({
+  x <- 1
+  f()
+})
+expect_error(f <- function() y <- 1)
+"
+            ),
+            @"
+        warning: unused_object
+         --> <test>:3:3
+          |
+        3 |   x <- 1
+          |   - Object `x` is defined but never used.
+          |
+        warning: unused_object
+         --> <test>:6:30
+          |
+        6 | expect_error(f <- function() y <- 1)
+          |                              - Object `y` is defined but never used.
+          |
+        Found 2 errors.
+        "
+        );
+    }
+
+    #[test]
+    fn test_lint_assignment_in_non_listed_expectation() {
+        // `expect_equal()` compares a value, so its argument is an ordinary
+        // expression and the binding is a dead store.
+        assert_snapshot!(
+            snapshot_lint(
+                "
+expect_equal(x <- 1, 1)
+"
+            ),
+            @"
+        warning: unused_object
+         --> <test>:2:14
+          |
+        2 | expect_equal(x <- 1, 1)
+          |              - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        "
+        );
+    }
+
+    #[test]
+    fn test_skipped_functions_replaces_defaults() {
+        // `skipped-functions` is a full replacement: `my_expect()` is allowed
+        // and the built-in `expect_error()` no longer is.
+        let options = UnusedObjectOptions {
+            skipped_functions: Some(vec!["my_expect".to_string()]),
+            extend_skipped_functions: None,
+        };
+        expect_no_lint_with_settings(
+            "my_expect(x <- 1)",
+            "unused_object",
+            None,
+            settings_with_options(options.clone()),
+        );
+        assert_snapshot!(
+            format_diagnostics_with_settings(
+                "expect_error(x <- 1)",
+                "unused_object",
+                None,
+                Some(settings_with_options(options)),
+            ),
+            @"
+        warning: unused_object
+         --> <test>:1:14
+          |
+        1 | expect_error(x <- 1)
+          |              - Object `x` is defined but never used.
+          |
+        Found 1 error.
+        "
+        );
+    }
+
+    #[test]
+    fn test_extend_skipped_functions_keeps_defaults() {
+        let options = UnusedObjectOptions {
+            skipped_functions: None,
+            extend_skipped_functions: Some(vec!["my_expect".to_string()]),
+        };
+        expect_no_lint_with_settings(
+            "my_expect(x <- 1)\nexpect_error(y <- 1)",
+            "unused_object",
+            None,
+            settings_with_options(options),
         );
     }
 }
