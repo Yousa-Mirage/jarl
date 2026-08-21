@@ -80,9 +80,13 @@
 
 ### Other improvements
 
-* Jarl is now available on PyPI under the name `jarl-linter`, enabling its
-  installation via `uv`, `pipx`, and other tools (#466). It is also on `conda-forge`,
-  meaning that it can be installed via `mise` and `pixi` (@salim-b).
+* Several new ways to install Jarl:
+
+  - it is available on PyPI under the name `jarl-linter`, enabling its
+    installation via `uv`, `pipx`, and other tools (#466).
+  - it is available on `conda-forge`, enabling its installation via `mise` and
+    `pixi` (@salim-b).
+  - it is available on Homebrew, enabling its installation via `brew`.
 
 
 ### Bug fixes
