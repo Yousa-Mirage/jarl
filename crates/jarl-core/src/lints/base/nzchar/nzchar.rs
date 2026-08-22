@@ -84,12 +84,11 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
                 Some("Use `!nzchar(x)` instead.".to_string()),
             ),
             range,
-            Fix {
-                content: format!("!nzchar({replacement})"),
-                start: range.start().into(),
-                end: range.end().into(),
-                to_skip: node_contains_comments(ast.syntax()),
-            },
+            Fix::new(
+                range,
+                format!("!nzchar({replacement})"),
+                node_contains_comments(ast.syntax()),
+            ),
         ),
         RSyntaxKind::NOT_EQUAL => Diagnostic::new(
             ViolationData::new(
@@ -98,12 +97,11 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
                 Some("Use `nzchar(x)` instead.".to_string()),
             ),
             range,
-            Fix {
-                content: format!("nzchar({replacement})"),
-                start: range.start().into(),
-                end: range.end().into(),
-                to_skip: node_contains_comments(ast.syntax()),
-            },
+            Fix::new(
+                range,
+                format!("nzchar({replacement})"),
+                node_contains_comments(ast.syntax()),
+            ),
         ),
         _ => unreachable!("This case is an early return"),
     };

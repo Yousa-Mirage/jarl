@@ -124,12 +124,7 @@ pub fn assignment(
     let diagnostic = Diagnostic::new(
         ViolationData::new(Rule::Assignment, msg.to_string(), None),
         range_to_report,
-        Fix {
-            content: replacement,
-            start: range.start().into(),
-            end: range.end().into(),
-            to_skip: false,
-        },
+        Fix::new(range, replacement, false),
     );
 
     Ok(Some(diagnostic))
