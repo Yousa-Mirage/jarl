@@ -1,6 +1,9 @@
 # Changelog
 
-## Development version
+## 0.6.0
+
+::: {.callout-note icon=false title="Released on 2026-08-24" .low-opacity}
+:::
 
 ### Breaking changes
 
