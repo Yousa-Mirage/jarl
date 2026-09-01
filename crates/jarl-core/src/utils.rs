@@ -277,12 +277,18 @@ pub fn get_nested_functions_content(
         return Ok(None);
     }
 
-    // Try nested case: outer_fn(inner_fn(content))
-    let unnamed_arg = call
+    // Try nested case: outer_fn(inner_fn(content)). The replacement is based
+    // on this argument, so there must not be another unnamed argument that
+    // would be discarded.
+    let mut unnamed_args = call
         .arguments()?
         .items()
         .into_iter()
-        .find(|x| x.as_ref().is_ok_and(|arg| arg.name_clause().is_none()));
+        .filter(|x| x.as_ref().is_ok_and(|arg| arg.name_clause().is_none()));
+    let unnamed_arg = match (unnamed_args.next(), unnamed_args.next()) {
+        (Some(arg), None) => Some(arg),
+        _ => None,
+    };
 
     if let Some(arg) = unnamed_arg {
         let value = arg?.value();
