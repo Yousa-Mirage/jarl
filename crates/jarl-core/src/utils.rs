@@ -277,9 +277,7 @@ pub fn get_nested_functions_content(
         return Ok(None);
     }
 
-    // Try nested case: outer_fn(inner_fn(content)). The replacement is based
-    // on this argument, so there must not be another unnamed argument that
-    // would be discarded.
+    // Try nested case: outer_fn(inner_fn(content))
     let mut unnamed_args = call
         .arguments()?
         .items()
