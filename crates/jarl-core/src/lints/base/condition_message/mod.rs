@@ -13,6 +13,8 @@ mod tests {
     fn test_no_lint_condition_message() {
         expect_no_lint("stop('boom')", "condition_message", None);
         expect_no_lint("stop('hello', 'there')", "condition_message", None);
+        expect_no_lint("stop(paste0('a'), 'b')", "condition_message", None);
+        expect_no_lint("warning(paste0('a'), 'b')", "condition_message", None);
         expect_no_lint("stop('boom', call. = FALSE)", "condition_message", None);
         expect_no_lint(
             "stop('hello', call. = FALSE, 'there')",
@@ -73,19 +75,6 @@ mod tests {
           |
         1 | stop(call. = FALSE, paste0('hello ', 'there'))
           | ---------------------------------------------- `stop(paste0(...))` can be simplified.
-          |
-          = help: Use `stop(...)` instead.
-        Found 1 error.
-        "
-        );
-        assert_snapshot!(
-            snapshot_lint("stop(paste0('hello ', 'there'), call. = FALSE, ' again')"),
-            @"
-        warning: condition_message
-         --> <test>:1:1
-          |
-        1 | stop(paste0('hello ', 'there'), call. = FALSE, ' again')
-          | -------------------------------------------------------- `stop(paste0(...))` can be simplified.
           |
           = help: Use `stop(...)` instead.
         Found 1 error.
@@ -154,19 +143,6 @@ mod tests {
           |
         1 | warning(call. = FALSE, paste0('hello ', 'there'))
           | ------------------------------------------------- `warning(paste0(...))` can be simplified.
-          |
-          = help: Use `warning(...)` instead.
-        Found 1 error.
-        "
-        );
-        assert_snapshot!(
-            snapshot_lint("warning(paste0('hello ', 'there'), call. = FALSE, ' again')"),
-            @"
-        warning: condition_message
-         --> <test>:1:1
-          |
-        1 | warning(paste0('hello ', 'there'), call. = FALSE, ' again')
-          | ----------------------------------------------------------- `warning(paste0(...))` can be simplified.
           |
           = help: Use `warning(...)` instead.
         Found 1 error.
