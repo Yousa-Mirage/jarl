@@ -9,6 +9,9 @@
 
 ### Bug fixes
 
+* Prevent fixes for `any_is_na`, `any_duplicated`, and `condition_message`
+  from dropping extra unnamed arguments (#677, @Yousa-Mirage).
+
 * Ensure that `--fix` works with multi-byte characters (#672, @Yousa-Mirage).
 
 * The `lengths` rule no longer crashes on calls where `X` is missing from the
