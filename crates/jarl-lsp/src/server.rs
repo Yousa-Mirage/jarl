@@ -5,8 +5,10 @@
 
 use anyhow::{Context, Result, anyhow};
 use crossbeam::channel;
+use gen_lsp_types::{
+    self as types, LspNotificationMethod, LspRequestMethod, Notification as _, Request as _,
+};
 use lsp_server::{Connection, Message, Notification, Request, RequestId, Response};
-use lsp_types::{self as types, notification::Notification as _, request::Request as _};
 
 use std::num::NonZeroUsize;
 use std::thread;
@@ -71,7 +73,7 @@ impl Server {
         tracing::debug!("Received initialize request with id: {:?}", id);
 
         // Parse initialize params
-        let init_params: lsp_types::InitializeParams = serde_json::from_value(init_params)
+        let init_params: types::InitializeParams = serde_json::from_value(init_params)
             .context("Failed to parse initialization parameters")?;
 
         tracing::debug!("Parsed initialize params successfully");
@@ -217,15 +219,15 @@ impl Server {
     ) -> LspResult<()> {
         let client = session.client().clone();
 
-        match request.method.as_str() {
-            types::request::Shutdown::METHOD => {
+        match LspRequestMethod::from(request.method.as_str()) {
+            types::ShutdownRequest::METHOD => {
                 session.request_shutdown();
                 client.send_response(request.id, ())?;
                 Ok(())
             }
             // Pull diagnostics are disabled: diagnostics are only published on save.
             // This avoids showing stale or partial diagnostics while typing.
-            types::request::CodeActionRequest::METHOD => {
+            types::CodeActionRequest::METHOD => {
                 let params: types::CodeActionParams = serde_json::from_value(request.params)?;
                 let uri = params.text_document.uri.clone();
 
@@ -266,8 +268,8 @@ impl Server {
         task_sender: &channel::Sender<Task>,
     ) -> LspResult<()> {
         tracing::debug!("Handling notification: {}", notification.method);
-        match notification.method.as_str() {
-            types::notification::Exit::METHOD => {
+        match LspNotificationMethod::from(notification.method.as_str()) {
+            types::ExitNotification::METHOD => {
                 if session.is_shutdown_requested() {
                     tracing::info!("Clean shutdown requested");
                 } else {
@@ -275,7 +277,7 @@ impl Server {
                 }
                 std::process::exit(0);
             }
-            types::notification::DidOpenTextDocument::METHOD => {
+            types::DidOpenTextDocumentNotification::METHOD => {
                 let params: types::DidOpenTextDocumentParams =
                     serde_json::from_value(notification.params)?;
 
@@ -283,7 +285,7 @@ impl Server {
 
                 let document =
                     TextDocument::new(params.text_document.text, params.text_document.version)
-                        .with_language_id(&params.text_document.language_id);
+                        .with_language_id(&params.text_document.language_id.to_string());
 
                 session.open_document(params.text_document.uri.clone(), document);
 
@@ -295,14 +297,17 @@ impl Server {
                 // Don't trigger linting on open, only on save
                 Ok(())
             }
-            types::notification::DidChangeTextDocument::METHOD => {
+            types::DidChangeTextDocumentNotification::METHOD => {
                 let params: types::DidChangeTextDocumentParams =
                     serde_json::from_value(notification.params)?;
 
-                tracing::debug!("Document changed: {}", params.text_document.uri);
+                tracing::debug!(
+                    "Document changed: {}",
+                    params.text_document.text_document_identifier.uri
+                );
 
                 session.update_document(
-                    params.text_document.uri.clone(),
+                    params.text_document.text_document_identifier.uri.clone(),
                     params.content_changes,
                     params.text_document.version,
                 )?;
@@ -310,7 +315,7 @@ impl Server {
                 // Don't trigger linting on every change, only on save
                 Ok(())
             }
-            types::notification::DidCloseTextDocument::METHOD => {
+            types::DidCloseTextDocumentNotification::METHOD => {
                 let params: types::DidCloseTextDocumentParams =
                     serde_json::from_value(notification.params)?;
 
@@ -322,7 +327,7 @@ impl Server {
                     .publish_diagnostics(params.text_document.uri, vec![], None)?;
                 Ok(())
             }
-            types::notification::DidSaveTextDocument::METHOD => {
+            types::DidSaveTextDocumentNotification::METHOD => {
                 let params: types::DidSaveTextDocumentParams =
                     serde_json::from_value(notification.params)?;
 
@@ -384,7 +389,7 @@ impl Server {
             let pkgs = output.refreshed_packages.join(", ");
             let _ = client.show_message(
                 &format!("Jarl updated its information for the following package(s): {pkgs}"),
-                types::MessageType::INFO,
+                types::MessageType::Info,
             );
         }
 
@@ -421,7 +426,7 @@ impl Server {
     fn generate_code_actions(
         snapshot: &DocumentSnapshot,
         params: &types::CodeActionParams,
-    ) -> LspResult<Vec<types::CodeActionOrCommand>> {
+    ) -> LspResult<Vec<types::CodeActionResponse>> {
         use crate::lint::lint_document;
 
         // Get diagnostics with fix information
@@ -434,21 +439,21 @@ impl Server {
             if ranges_overlap(&diagnostic.range, &params.range) {
                 // Add the regular fix action if available
                 if let Some(action) = Self::diagnostic_to_code_action(&diagnostic, snapshot) {
-                    actions.push(types::CodeActionOrCommand::CodeAction(action));
+                    actions.push(types::CodeActionResponse::CodeAction(action));
                 }
 
                 // Add jarl-ignore actions
                 if let Some(action) =
                     Self::diagnostic_to_jarl_ignore_rule_action(&diagnostic, snapshot)
                 {
-                    actions.push(types::CodeActionOrCommand::CodeAction(action));
+                    actions.push(types::CodeActionResponse::CodeAction(action));
                 }
 
                 // Add chunk-level ignore action (Rmd/Qmd only)
                 if let Some(action) =
                     Self::diagnostic_to_jarl_ignore_chunk_action(&diagnostic, snapshot)
                 {
-                    actions.push(types::CodeActionOrCommand::CodeAction(action));
+                    actions.push(types::CodeActionResponse::CodeAction(action));
                 }
             }
         }
@@ -490,13 +495,13 @@ impl Server {
 
         // Determine the fix kind based on safety
         let kind = if fix.is_safe {
-            types::CodeActionKind::QUICKFIX
+            types::CodeActionKind::QuickFix
         } else {
-            types::CodeActionKind::from("quickfix.unsafe".to_string())
+            types::CodeActionKind::new("quickfix.unsafe")
         };
 
         Some(types::CodeAction {
-            title: format!("Fix: {}", diagnostic.message),
+            title: format!("Fix: {}", crate::lint::message_text(&diagnostic.message)),
             kind: Some(kind),
             diagnostics: Some(vec![diagnostic.clone()]),
             edit: Some(workspace_edit),
@@ -504,6 +509,7 @@ impl Server {
             is_preferred: Some(fix.is_safe),
             disabled: None,
             data: None,
+            tags: None,
         })
     }
 
@@ -605,13 +611,14 @@ impl Server {
                 "Suppress `{}` violation with jarl-ignore comment.",
                 rule_name
             ),
-            kind: Some(types::CodeActionKind::QUICKFIX),
+            kind: Some(types::CodeActionKind::QuickFix),
             diagnostics: Some(vec![diagnostic.clone()]),
             edit: Some(workspace_edit),
             command: None,
             is_preferred: Some(false),
             disabled: None,
             data: None,
+            tags: None,
         })
     }
 
@@ -676,13 +683,14 @@ impl Server {
 
         Some(types::CodeAction {
             title: format!("Ignore all violations of `{rule_name}` in this chunk."),
-            kind: Some(types::CodeActionKind::QUICKFIX),
+            kind: Some(types::CodeActionKind::QuickFix),
             diagnostics: Some(vec![diagnostic.clone()]),
             edit: Some(workspace_edit),
             command: None,
             is_preferred: Some(false),
             disabled: None,
             data: None,
+            tags: None,
         })
     }
 
@@ -704,8 +712,8 @@ mod tests {
     use crate::document::{DocumentKey, TextDocument};
     use crate::lint;
     use crate::session::DocumentSnapshot;
+    use gen_lsp_types::{Position, Range, Uri};
     use lsp_server::Connection;
-    use lsp_types::{Position, Range, Url};
     use tempfile::TempDir;
 
     const CURSOR: &str = "<CURS>";
@@ -755,7 +763,7 @@ select = ["ALL"]
             content: &str,
             encoding: PositionEncoding,
         ) -> DocumentSnapshot {
-            let uri = Url::from_file_path(&self.file_path).unwrap();
+            let uri = Uri::from_file_path(&self.file_path).unwrap();
             let key = DocumentKey::from(uri);
             let document = TextDocument::new(content.to_string(), 1);
 
@@ -763,13 +771,131 @@ select = ["ALL"]
                 document,
                 key,
                 encoding,
-                lsp_types::ClientCapabilities::default(),
+                types::ClientCapabilities::default(),
             )
         }
     }
 
+    /// The dispatch in `handle_request`/`handle_notification` matches the
+    /// method string a client sent against these constants, so a wrong mapping
+    /// would silently route every message to the catch-all arm.
+    #[test]
+    fn test_dispatched_methods_match_their_protocol_strings() {
+        assert_eq!(types::ShutdownRequest::METHOD.as_str(), "shutdown");
+        assert_eq!(
+            types::CodeActionRequest::METHOD.as_str(),
+            "textDocument/codeAction"
+        );
+        assert_eq!(types::ExitNotification::METHOD.as_str(), "exit");
+        assert_eq!(
+            types::DidOpenTextDocumentNotification::METHOD.as_str(),
+            "textDocument/didOpen"
+        );
+        assert_eq!(
+            types::DidChangeTextDocumentNotification::METHOD.as_str(),
+            "textDocument/didChange"
+        );
+        assert_eq!(
+            types::DidCloseTextDocumentNotification::METHOD.as_str(),
+            "textDocument/didClose"
+        );
+        assert_eq!(
+            types::DidSaveTextDocumentNotification::METHOD.as_str(),
+            "textDocument/didSave"
+        );
+
+        // The scrutinee is built with `from`, so it has to round-trip back to
+        // the same variant the arms are written against.
+        assert_eq!(
+            LspRequestMethod::from("textDocument/codeAction"),
+            types::CodeActionRequest::METHOD
+        );
+        assert_eq!(
+            LspNotificationMethod::from("textDocument/didSave"),
+            types::DidSaveTextDocumentNotification::METHOD
+        );
+        assert!(matches!(
+            LspRequestMethod::from("textDocument/hover"),
+            LspRequestMethod::TextDocumentHover
+        ));
+    }
+
+    #[test]
+    fn test_code_action_kinds_serialize_to_protocol_strings() {
+        // The unsafe kind is a custom value, and code actions go out wrapped in
+        // an untagged response enum.
+        assert_eq!(
+            serde_json::to_value(types::CodeActionKind::QuickFix).unwrap(),
+            "quickfix"
+        );
+        assert_eq!(
+            serde_json::to_value(types::CodeActionKind::new("quickfix.unsafe")).unwrap(),
+            "quickfix.unsafe"
+        );
+
+        let action = types::CodeActionResponse::CodeAction(types::CodeAction {
+            title: "Fix: something".to_string(),
+            kind: Some(types::CodeActionKind::QuickFix),
+            diagnostics: None,
+            is_preferred: Some(true),
+            disabled: None,
+            edit: None,
+            command: None,
+            data: None,
+            tags: None,
+        });
+        let json = serde_json::to_value(action).unwrap();
+        assert_eq!(json["title"], "Fix: something");
+        assert_eq!(json["kind"], "quickfix");
+    }
+
+    #[test]
+    fn test_did_change_params_carry_uri_and_version() {
+        // `uri` lives on a flattened identifier struct, and the content changes
+        // are an untagged enum.
+        let params: types::DidChangeTextDocumentParams =
+            serde_json::from_value(serde_json::json!({
+                "textDocument": { "uri": "file:///test.R", "version": 4 },
+                "contentChanges": [{
+                    "range": {
+                        "start": { "line": 0, "character": 0 },
+                        "end": { "line": 0, "character": 1 }
+                    },
+                    "text": "x"
+                }]
+            }))
+            .unwrap();
+
+        assert_eq!(
+            params.text_document.text_document_identifier.uri.as_str(),
+            "file:///test.R"
+        );
+        assert_eq!(params.text_document.version, 4);
+        assert_eq!(params.content_changes.len(), 1);
+    }
+
+    #[test]
+    fn test_did_open_params_carry_language_id() {
+        // `language_id` is a `LanguageKind` enum now, and the document stores
+        // its string form.
+        let params: types::DidOpenTextDocumentParams = serde_json::from_value(serde_json::json!({
+            "textDocument": {
+                "uri": "file:///test.R",
+                "languageId": "r",
+                "version": 1,
+                "text": "x <- 1\n"
+            }
+        }))
+        .unwrap();
+
+        let document = TextDocument::new(params.text_document.text, params.text_document.version)
+            .with_language_id(&params.text_document.language_id.to_string());
+
+        assert_eq!(document.language_id(), Some("r"));
+    }
+
     fn create_test_snapshot(content: &str) -> DocumentSnapshot {
-        let uri = Url::parse("file:///test.R").unwrap();
+        let uri = Uri::parse("file:///test.R").unwrap();
         let key = DocumentKey::from(uri);
         let document = TextDocument::new(content.to_string(), 1);
 
@@ -777,7 +903,7 @@ select = ["ALL"]
             document,
             key,
             PositionEncoding::UTF8,
-            lsp_types::ClientCapabilities::default(),
+            types::ClientCapabilities::default(),
         )
     }
 
@@ -1000,11 +1126,11 @@ select = ["ALL"]
 
         let diagnostic = types::Diagnostic {
             range: Range::new(Position::new(0, 0), Position::new(0, 16)),
-            severity: Some(types::DiagnosticSeverity::WARNING),
+            severity: Some(types::DiagnosticSeverity::Warning),
             code: None,
             code_description: None,
             source: Some("jarl".to_string()),
-            message: "Use inherits()".to_string(),
+            message: types::Message::String("Use inherits()".to_string()),
             related_information: None,
             tags: None,
             data: None,
@@ -1012,6 +1138,47 @@ select = ["ALL"]
 
         let result = Server::diagnostic_to_code_action(&diagnostic, &snapshot);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_code_action_edit_wire_format() {
+        let snapshot = create_test_snapshot("any(duplicated(x))\n");
+
+        let fix = lint::DiagnosticFix {
+            content: "anyDuplicated(x) > 0".to_string(),
+            start: 0,
+            end: 18,
+            is_safe: false,
+            rule_name: "any_duplicated".to_string(),
+            diagnostic_start: 0,
+            diagnostic_end: 18,
+        };
+
+        let diagnostic = types::Diagnostic {
+            range: Range::new(Position::new(0, 0), Position::new(0, 18)),
+            severity: Some(types::DiagnosticSeverity::Warning),
+            code: Some(types::Code::String("any_duplicated".to_string())),
+            code_description: None,
+            source: Some(crate::DIAGNOSTIC_SOURCE.to_string()),
+            message: types::Message::String("Use anyDuplicated()".to_string()),
+            related_information: None,
+            tags: None,
+            data: Some(serde_json::to_value(fix).unwrap()),
+        };
+
+        let action = Server::diagnostic_to_code_action(&diagnostic, &snapshot).unwrap();
+        let json = serde_json::to_value(action).unwrap();
+
+        // An unsafe fix is offered under a custom kind.
+        assert_eq!(json["kind"], "quickfix.unsafe");
+        assert_eq!(json["isPreferred"], false);
+
+        // `changes` is a map keyed by `Uri`, which has to become a JSON object
+        // keyed by the URI string.
+        let edits = &json["edit"]["changes"]["file:///test.R"];
+        assert_eq!(edits[0]["newText"], "anyDuplicated(x) > 0");
+        assert_eq!(edits[0]["range"]["start"]["character"], 0);
+        assert_eq!(edits[0]["range"]["end"]["character"], 18);
     }
 
     // =========================================================================
@@ -1581,7 +1748,7 @@ x |>
         let action = Server::diagnostic_to_code_action(diagnostic, &snapshot).unwrap();
 
         assert!(action.title.starts_with("Fix:"));
-        assert_eq!(action.kind, Some(types::CodeActionKind::QUICKFIX));
+        assert_eq!(action.kind, Some(types::CodeActionKind::QuickFix));
         assert!(action.is_preferred.unwrap_or(false));
     }
 
@@ -1598,7 +1765,7 @@ x |>
 
         assert!(action.title.contains("assignment"));
         assert!(action.title.contains("jarl-ignore"));
-        assert_eq!(action.kind, Some(types::CodeActionKind::QUICKFIX));
+        assert_eq!(action.kind, Some(types::CodeActionKind::QuickFix));
         assert!(!action.is_preferred.unwrap_or(true));
     }
 
