@@ -95,16 +95,10 @@ fn get_direct_nested_paste0_content(call: &RCall) -> anyhow::Result<Option<Strin
         .items()
         .into_iter()
         .find(|arg| arg.as_ref().is_ok_and(|arg| arg.name_clause().is_none()));
-    let Some(argument) = argument else {
-        return Ok(None);
-    };
+    let argument = unwrap_or_return_none!(argument);
+    let inner = unwrap_or_return_none!(argument?.value());
+    let inner_call = unwrap_or_return_none!(inner.as_r_call());
 
-    let Some(inner) = argument?.value() else {
-        return Ok(None);
-    };
-    let Some(inner_call) = inner.as_r_call() else {
-        return Ok(None);
-    };
     if get_function_name(inner_call.function()?) != "paste0" {
         return Ok(None);
     }
