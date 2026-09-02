@@ -244,6 +244,8 @@ mod tests {
                     "warning(paste0('hello ', 'there'), immediate. = FALSE)",
                     "warning(paste0('hello ', 'there'), noBreaks. = FALSE)",
                     "warning(call. = FALSE, paste0('hello ', 'there'), domain = foo)",
+                    "paste0('hello ', 'there') |> stop()",
+                    "'hello ' |> paste0() |> warning(domain = foo)",
                 ],
                 "condition_message",
             )

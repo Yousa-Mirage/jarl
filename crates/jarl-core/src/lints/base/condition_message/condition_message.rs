@@ -34,8 +34,8 @@ pub fn condition_message(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Di
     }
 
     let (inner_content, outer_syntax, is_direct_nested) =
-        if let Some((inner_content, outer_syntax)) = get_direct_nested_paste0_content(ast)? {
-            (inner_content, outer_syntax, true)
+        if let Some(inner_content) = get_direct_nested_paste0_content(ast)? {
+            (inner_content, ast.syntax().clone(), true)
         } else {
             let (inner_content, outer_syntax) = unwrap_or_return_none!(
                 get_nested_functions_content(ast, fn_name, fn_name, "paste0")?
@@ -89,7 +89,7 @@ pub fn condition_message(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Di
     )))
 }
 
-fn get_direct_nested_paste0_content(call: &RCall) -> anyhow::Result<Option<(String, RSyntaxNode)>> {
+fn get_direct_nested_paste0_content(call: &RCall) -> anyhow::Result<Option<String>> {
     let argument = call
         .arguments()?
         .items()
@@ -105,15 +105,10 @@ fn get_direct_nested_paste0_content(call: &RCall) -> anyhow::Result<Option<(Stri
     let Some(inner_call) = inner.as_r_call() else {
         return Ok(None);
     };
-    if get_function_name(inner_call.as_fields().function?) != "paste0" {
+    if get_function_name(inner_call.function()?) != "paste0" {
         return Ok(None);
     }
 
-    let inner_content = inner_call
-        .as_fields()
-        .arguments?
-        .items()
-        .into_syntax()
-        .to_string();
-    Ok(Some((inner_content, call.syntax().clone())))
+    let inner_content = inner_call.arguments()?.items().into_syntax().to_string();
+    Ok(Some(inner_content))
 }
