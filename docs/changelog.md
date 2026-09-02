@@ -25,6 +25,9 @@
 * Avoid invalid `literal_coercion` fixes for strings containing quotes
   (#678, @Yousa-Mirage).
 
+* Prevent incorrect `dplyr_filter_out` fixes caused by matching `is.na()` guard
+  arguments as substrings of other identifiers (#681, @Yousa-Mirage).
+
 ## 0.6.0
 
 ::: {.callout-note icon=false title="Released on 2026-08-24" .low-opacity}
