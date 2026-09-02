@@ -22,6 +22,9 @@
 * Avoid invalid `literal_coercion` fixes for strings containing quotes
   (#678, @Yousa-Mirage).
 
+* The `expect_type` rule no longer lints `expect_true(is.null(x))`, which was
+  already reported by the `expect_null` rule (#680, @Yousa-Mirage).
+
 ## 0.6.0
 
 ::: {.callout-note icon=false title="Released on 2026-08-24" .low-opacity}
