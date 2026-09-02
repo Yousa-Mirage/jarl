@@ -58,6 +58,11 @@ mod tests {
             "dplyr_filter_out",
             None,
         );
+        expect_no_lint(
+            "x |> dplyr::filter(x2 > 0 | is.na(x))",
+            "dplyr_filter_out",
+            None,
+        );
         // Tidy eval splice in condition
         expect_no_lint(
             "x |> dplyr::filter(!!!args | is.na(a))",
@@ -79,16 +84,6 @@ mod tests {
         expect_no_lint("x |> dplyr::filter()", "dplyr_filter_out", None);
         // No unnamed arg
         expect_no_lint("x |> dplyr::filter(.by = a)", "dplyr_filter_out", None);
-    }
-
-    #[test]
-    fn test_no_lint_is_na_guard_substring_match() {
-        // `x` must not match the prefix of the different identifier `x2`.
-        expect_no_lint(
-            "x |> dplyr::filter(x2 > 0 | is.na(x))",
-            "dplyr_filter_out",
-            None,
-        );
     }
 
     #[test]
