@@ -82,6 +82,16 @@ mod tests {
     }
 
     #[test]
+    fn test_no_lint_is_na_guard_substring_match() {
+        // `x` must not match the prefix of the different identifier `x2`.
+        expect_no_lint(
+            "x |> dplyr::filter(x2 > 0 | is.na(x))",
+            "dplyr_filter_out",
+            None,
+        );
+    }
+
+    #[test]
     fn test_lint_is_na_guard() {
         assert_snapshot!(
             snapshot_lint("x |> dplyr::filter(a > 1 | is.na(a))"),
