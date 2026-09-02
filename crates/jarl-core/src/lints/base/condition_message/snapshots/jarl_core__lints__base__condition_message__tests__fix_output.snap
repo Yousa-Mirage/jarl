@@ -1,6 +1,6 @@
 ---
 source: crates/jarl-core/src/lints/base/condition_message/mod.rs
-expression: "get_unsafe_fixed_text(vec![\"stop(paste0('hello ', 'there'))\",\n\"stop(paste0('hello ', 'there'), call. = FALSE)\",\n\"stop(paste0('hello ', 'there'), domain = foo)\",\n\"stop(call. = FALSE, paste0('hello ', 'there'), domain = foo)\",\n\"warning(paste0('hello ', 'there'))\",\n\"warning(paste0('hello ', 'there'), call. = FALSE)\",\n\"warning(paste0('hello ', 'there'), domain = foo)\",\n\"warning(paste0('hello ', 'there'), immediate. = FALSE)\",\n\"warning(paste0('hello ', 'there'), noBreaks. = FALSE)\",\n\"warning(call. = FALSE, paste0('hello ', 'there'), domain = foo)\",],\n\"condition_message\",)"
+expression: "get_unsafe_fixed_text(vec![\"stop(paste0('hello ', 'there'))\",\n\"stop(paste0('hello ', 'there'), call. = FALSE)\",\n\"stop(paste0('hello ', 'there'), call. = FALSE, ' again')\",\n\"stop(paste0('hello ', 'there'), domain = foo)\",\n\"stop(call. = FALSE, paste0('hello ', 'there'), domain = foo)\",\n\"warning(paste0('hello ', 'there'))\",\n\"warning(paste0('hello ', 'there'), call. = FALSE)\",\n\"warning(paste0('hello ', 'there'), call. = FALSE, ' again')\",\n\"warning(paste0('hello ', 'there'), domain = foo)\",\n\"warning(paste0('hello ', 'there'), immediate. = FALSE)\",\n\"warning(paste0('hello ', 'there'), noBreaks. = FALSE)\",\n\"warning(call. = FALSE, paste0('hello ', 'there'), domain = foo)\",],\n\"condition_message\",)"
 ---
 OLD:
 ====
@@ -15,6 +15,13 @@ stop(paste0('hello ', 'there'), call. = FALSE)
 NEW:
 ====
 stop('hello ', 'there', call. = FALSE)
+
+OLD:
+====
+stop(paste0('hello ', 'there'), call. = FALSE, ' again')
+NEW:
+====
+stop('hello ', 'there', call. = FALSE, ' again')
 
 OLD:
 ====
@@ -43,6 +50,13 @@ warning(paste0('hello ', 'there'), call. = FALSE)
 NEW:
 ====
 warning('hello ', 'there', call. = FALSE)
+
+OLD:
+====
+warning(paste0('hello ', 'there'), call. = FALSE, ' again')
+NEW:
+====
+warning('hello ', 'there', call. = FALSE, ' again')
 
 OLD:
 ====

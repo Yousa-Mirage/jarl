@@ -33,9 +33,15 @@ pub fn condition_message(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Di
         return Ok(None);
     }
 
-    let (inner_content, outer_syntax) = unwrap_or_return_none!(get_nested_functions_content(
-        ast, fn_name, fn_name, "paste0"
-    )?);
+    let (inner_content, outer_syntax, is_direct_nested) =
+        if let Some((inner_content, outer_syntax)) = get_direct_nested_paste0_content(ast)? {
+            (inner_content, outer_syntax, true)
+        } else {
+            let (inner_content, outer_syntax) = unwrap_or_return_none!(
+                get_nested_functions_content(ast, fn_name, fn_name, "paste0")?
+            );
+            (inner_content, outer_syntax, false)
+        };
 
     // `stop()` doesn't have equivalents for recycle0 or collapse args, so bail
     // early
@@ -52,18 +58,16 @@ pub fn condition_message(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Di
         }
     }
 
-    let args = ast.arguments()?.items();
-    let call_arg = get_arg_by_name(&args, "call.");
-    let domain_arg = get_arg_by_name(&args, "domain");
-
-    // In warning() only
-    let immediate_arg = get_arg_by_name(&args, "immediate.");
-    let nobreaks_arg = get_arg_by_name(&args, "noBreaks.");
-
-    let extra_args = [call_arg, domain_arg, immediate_arg, nobreaks_arg]
-        .into_iter()
-        .flatten()
-        .map(|arg| arg.to_trimmed_string());
+    let mut skipped_nested = false;
+    let extra_args = ast.arguments()?.items().into_iter().filter_map(|arg| {
+        let arg = arg.ok()?;
+        if is_direct_nested && !skipped_nested && arg.name_clause().is_none() {
+            skipped_nested = true;
+            None
+        } else {
+            Some(arg.to_trimmed_string())
+        }
+    });
     let new_content = std::iter::once(inner_content)
         .chain(extra_args)
         .collect::<Vec<_>>()
@@ -83,4 +87,33 @@ pub fn condition_message(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Di
             node_contains_comments(&outer_syntax),
         ),
     )))
+}
+
+fn get_direct_nested_paste0_content(call: &RCall) -> anyhow::Result<Option<(String, RSyntaxNode)>> {
+    let argument = call
+        .arguments()?
+        .items()
+        .into_iter()
+        .find(|arg| arg.as_ref().is_ok_and(|arg| arg.name_clause().is_none()));
+    let Some(argument) = argument else {
+        return Ok(None);
+    };
+
+    let Some(inner) = argument?.value() else {
+        return Ok(None);
+    };
+    let Some(inner_call) = inner.as_r_call() else {
+        return Ok(None);
+    };
+    if get_function_name(inner_call.as_fields().function?) != "paste0" {
+        return Ok(None);
+    }
+
+    let inner_content = inner_call
+        .as_fields()
+        .arguments?
+        .items()
+        .into_syntax()
+        .to_string();
+    Ok(Some((inner_content, call.syntax().clone())))
 }
