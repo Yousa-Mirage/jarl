@@ -16,6 +16,9 @@
 
 ### Bug fixes
 
+* Prevent the `sample_int` rule from panicking on calls with missing arguments
+  (#687, @Yousa-Mirage).
+
 * Prevent the `outer_negation` rule from rewriting unary `+` and `-` expressions
   as logical negations (#688, @Yousa-Mirage).
 
