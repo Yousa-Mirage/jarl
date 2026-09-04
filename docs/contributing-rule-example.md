@@ -3,6 +3,13 @@ title: Adding a new rule to Jarl
 ---
 
 This page will explain how to implement a new rule in Jarl.
+
+::: {.callout-important}
+This page is usually up-to-date with the latest changes in Jarl's internals, but you should ensure that you are reading the "dev" version: [jarl.etiennebacher.com/dev/contributing-rule-example](https://jarl.etiennebacher.com/dev/contributing-rule-example)
+
+If you see outdated content, please [open an issue](https://github.com/etiennebacher/jarl/issues).
+:::
+
 It is recommended to read the [General information page](contributing.md) first to install the required tools.
 Jarl is written in Rust, but this page will *not* explain how to set up or use Rust, this is an entirely different topic.
 To get started with Rust, check out the [Rust book](https://doc.rust-lang.org/stable/book/).
