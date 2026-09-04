@@ -135,8 +135,7 @@ We also need to add the following line in `lints/base/mod.rs`:
 pub(crate) mod list2df;
 ```
 
-The file to modify in the `analyze` folder will depend on the rule: here, we look for calls to `do.call()`.
-The arguments passed to the function are irrelevant, what matters is that this is a call, so we will modify the file `analyze/call.rs`:
+The file to modify in the `analyze` folder will depend on the rule: here, we look for calls to `do.call()`, so we will modify the file `analyze/call.rs`:
 
 ```rust
 use crate::lints::list2df::list2df::list2df;
@@ -152,9 +151,18 @@ Note that `analyze/call.rs` computes the function name once per call and passes 
 
 ### Implement the rule
 
-This is the hard part of the process.
+Two files are needed:
+
+- there must be a file `lints/base/<rule_name>/mod.rs`, so in this example `lints/base/list2df/mod.rs`. This file will contain tests later on, but for now you can just include the following line:
+
+    ```rust
+    pub(crate) mod list2df;
+    ```
+
+- the rule definition must be located in `lints/base/<rule_name>/<rule_name>.rs`, so in this example in `lints/base/list2df/list2df.rs`.
+
+Writing this second file is the hard part of the process.
 It requires knowledge about the AST you want to parse and about the different functions available to us to navigate this AST.
-The rule definition must be located in `lints/base/<rule_name>/<rule_name>.rs`, so in this example in `lints/base/list2df/list2df.rs`.
 
 Let's start with a skeleton of this file:
 
@@ -321,7 +329,7 @@ do.call(
 )
 ```
 
-At this point, if you have an R file with a couple of examples that should be reported (e.g. `test.R`), you can use `cargo run --bin jarl -- check test.R` (the rule in this example is only valid for R >= 4.0.0, so we also need `--min-r-version 4.1` for instance).
+At this point, if you have an R file with a couple of examples that should be reported (e.g. `test.R`), you can use `cargo run --bin jarl -- check test.R` (the rule in this example is only valid for R >= 4.0.0, so we also need `--min-r-version 4.0` for instance).
 
 ### Add TOML options
 
