@@ -40,11 +40,26 @@ mod tests {
         );
 
         assert_snapshot!(
+            snapshot_lint(r#"x == r"()""#),
+            @r#"
+        warning: nzchar
+         --> <test>:1:1
+          |
+        1 | x == r"()"
+          | ---------- `x == ""` is inefficient.
+          |
+          = help: Use `!nzchar(x)` instead.
+        Found 1 error.
+        "#
+        );
+
+        assert_snapshot!(
             "fix_output",
             get_unsafe_fixed_text(
                 vec![
                     "x == ''",
                     "x != ''",
+                    r#"x == r"()""#,
                     "foo(x(y)) == ''",
                     "'' == x",
                     "which(c(a, b, c) == '')"

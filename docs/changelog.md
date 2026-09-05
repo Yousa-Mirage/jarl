@@ -16,8 +16,8 @@
 
 ### Bug fixes
 
-* Prevent the `nzchar` rule from treating characters like `"'"` as empty strings
-  (#696, @Yousa-Mirage).
+* Prevent the `nzchar` rule from treating quote characters as empty strings and
+  support empty raw string literals (#696, @Yousa-Mirage).
 
 * Prevent the `sample_int` rule from panicking on calls with missing arguments
   (#687, @Yousa-Mirage).
