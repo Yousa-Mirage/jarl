@@ -62,6 +62,14 @@ mod tests {
         expect_no_lint("x %in% ''", "nzchar", None);
 
         expect_no_lint("x + ''", "nzchar", None);
+
+        expect_no_lint(r#"x == "'"#, "nzchar", None);
+
+        expect_no_lint(r#"x != "'"#, "nzchar", None);
+
+        expect_no_lint(r#"x == "''"#, "nzchar", None);
+
+        expect_no_lint(r#"x != "''"#, "nzchar", None);
     }
 
     #[test]

@@ -16,6 +16,8 @@
 
 ### Bug fixes
 
+* Prevent the `nzchar` rule from treating characters like `"'"` as empty strings.
+
 * Prevent the `sample_int` rule from panicking on calls with missing arguments
   (#687, @Yousa-Mirage).
 
