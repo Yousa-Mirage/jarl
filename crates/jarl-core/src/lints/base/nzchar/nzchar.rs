@@ -1,16 +1,18 @@
 use crate::diagnostic::*;
 use crate::rule_set::Rule;
-use crate::utils::node_contains_comments;
+use crate::utils::{Formals, get_arg, get_function_name, node_contains_comments};
 use air_r_syntax::*;
-use biome_rowan::AstNode;
+use biome_rowan::{AstNode, AstSeparatedList};
 use jarl_semantic::strings::get_string_literal_contents;
+
+const FORMALS_NCHAR: Formals = &["x"];
 
 /// Version added: 0.5.0
 ///
 /// ## What it does
 ///
-/// Checks for usage of `x != ""` or `x == ""`
-///  instead of `nzchar(x)` or `!nzchar(x)`.
+/// Checks for usage of `x != ""` or `x == ""`, or comparisons of `nchar(x)`
+/// with zero, such as `nchar(x) == 0`, instead of `nzchar(x)` or `!nzchar(x)`.
 ///
 /// ## Why is this bad?
 /// `x == ""` is less efficient than `!nzchar(x)`
@@ -47,8 +49,102 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     let left = left?;
     let operator = operator?;
     let right = right?;
+    let operator_kind = operator.kind();
 
-    if operator.kind() != RSyntaxKind::EQUAL2 && operator.kind() != RSyntaxKind::NOT_EQUAL {
+    let (nchar_expression, zero_on_left) = if is_zero_literal(&right) {
+        (Some(&left), false)
+    } else if is_zero_literal(&left) {
+        (Some(&right), true)
+    } else {
+        (None, false)
+    };
+
+    // Normalize equivalent comparisons so `nchar(...)` is treated as the left operand.
+    // `zero_on_left` is true for forms such as `0 < nchar(x)`.
+    let normalized_operator = match (operator_kind, zero_on_left) {
+        // `nchar(x) > 0` and `0 < nchar(x)`.
+        (RSyntaxKind::GREATER_THAN, false) | (RSyntaxKind::LESS_THAN, true) => {
+            Some(RSyntaxKind::GREATER_THAN)
+        }
+        // `nchar(x) != 0` and `0 != nchar(x)`.
+        (RSyntaxKind::NOT_EQUAL, _) => Some(RSyntaxKind::NOT_EQUAL),
+        // `nchar(x) <= 0` and `0 >= nchar(x)`.
+        (RSyntaxKind::LESS_THAN_OR_EQUAL_TO, false)
+        | (RSyntaxKind::GREATER_THAN_OR_EQUAL_TO, true) => Some(RSyntaxKind::LESS_THAN_OR_EQUAL_TO),
+        // `nchar(x) == 0` and `0 == nchar(x)`.
+        (RSyntaxKind::EQUAL2, _) => Some(RSyntaxKind::EQUAL2),
+        // `nchar(x) >= 0` and `0 <= nchar(x)`.
+        (RSyntaxKind::GREATER_THAN_OR_EQUAL_TO, false)
+        | (RSyntaxKind::LESS_THAN_OR_EQUAL_TO, true) => Some(RSyntaxKind::GREATER_THAN_OR_EQUAL_TO),
+        // `nchar(x) < 0` and `0 > nchar(x)`.
+        (RSyntaxKind::LESS_THAN, false) | (RSyntaxKind::GREATER_THAN, true) => {
+            Some(RSyntaxKind::LESS_THAN)
+        }
+        // Operators other than the six comparisons above are not supported.
+        _ => None,
+    };
+
+    if let Some(nchar_expression) = nchar_expression
+        && let Some(call) = nchar_expression.as_r_call()
+        && let Some(operator) = normalized_operator
+        && get_function_name(call.function()?) == "nchar"
+    {
+        if call.arguments()?.items().len() != 1 {
+            return Ok(None);
+        }
+        if let Some(argument) =
+            get_arg(call, FORMALS_NCHAR, "x").and_then(|argument| argument.value())
+        {
+            let range = ast.syntax().text_trimmed_range();
+            let argument = argument.to_trimmed_string();
+            let (body, suggestion, replacement) = match operator {
+                RSyntaxKind::GREATER_THAN => (
+                    "`nchar(x) > 0` is inefficient.",
+                    "Use `nzchar(x)` instead.",
+                    Some(format!("nzchar({argument})")),
+                ),
+                RSyntaxKind::NOT_EQUAL => (
+                    "`nchar(x) != 0` is inefficient.",
+                    "Use `nzchar(x)` instead.",
+                    Some(format!("nzchar({argument})")),
+                ),
+                RSyntaxKind::LESS_THAN_OR_EQUAL_TO => (
+                    "`nchar(x) <= 0` is inefficient.",
+                    "Use `!nzchar(x)` instead.",
+                    Some(format!("!nzchar({argument})")),
+                ),
+                RSyntaxKind::EQUAL2 => (
+                    "`nchar(x) == 0` is inefficient.",
+                    "Use `!nzchar(x)` instead.",
+                    Some(format!("!nzchar({argument})")),
+                ),
+                RSyntaxKind::GREATER_THAN_OR_EQUAL_TO => (
+                    "`nchar(x) >= 0` is always true.",
+                    "Maybe you want `nzchar(x)` instead.",
+                    None,
+                ),
+                RSyntaxKind::LESS_THAN => (
+                    "`nchar(x) < 0` is always false.",
+                    "Maybe you want `!nzchar(x)` instead.",
+                    None,
+                ),
+                _ => unreachable!("Only comparison operators are normalized above"),
+            };
+            let fix = match replacement {
+                Some(replacement) => {
+                    Fix::new(range, replacement, node_contains_comments(ast.syntax()))
+                }
+                None => Fix::empty(),
+            };
+            return Ok(Some(Diagnostic::new(
+                ViolationData::new(Rule::NzChar, body.to_string(), Some(suggestion.to_string())),
+                range,
+                fix,
+            )));
+        }
+    }
+
+    if operator_kind != RSyntaxKind::EQUAL2 && operator_kind != RSyntaxKind::NOT_EQUAL {
         return Ok(None);
     };
 
@@ -75,7 +171,7 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
         left.to_trimmed_string()
     };
 
-    let diagnostic = match operator.kind() {
+    let diagnostic = match operator_kind {
         RSyntaxKind::EQUAL2 => Diagnostic::new(
             ViolationData::new(
                 Rule::NzChar,
@@ -106,4 +202,22 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     };
 
     Ok(Some(diagnostic))
+}
+
+fn is_zero_literal(expression: &AnyRExpression) -> bool {
+    let Some(value) = expression.as_any_r_value() else {
+        return false;
+    };
+
+    if let Some(integer) = value.as_r_integer_value() {
+        return integer
+            .value_token()
+            .is_ok_and(|token| matches!(token.text_trimmed(), "0" | "0L"));
+    }
+    if let Some(double) = value.as_r_double_value() {
+        return double
+            .value_token()
+            .is_ok_and(|token| matches!(token.text_trimmed(), "0" | "0.0" | "0."));
+    }
+    false
 }
