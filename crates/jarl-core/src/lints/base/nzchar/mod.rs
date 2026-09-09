@@ -70,6 +70,33 @@ mod tests {
     }
 
     #[test]
+    fn test_lint_nchar_zero_comparisons() {
+        assert_snapshot!(
+            "nchar_zero_comparisons",
+            snapshot_lint(
+                "nchar(x) > 0\nnchar(x) != 0L\nnchar(x) <= 0.0\nnchar(x) == 0\nnchar(x) >= 0\nnchar(x) < 0\n0 < nchar(x)\n0 == nchar(x)"
+            )
+        );
+
+        assert_snapshot!(
+            "nchar_zero_fix_output",
+            get_unsafe_fixed_text(
+                vec![
+                    "nchar(x) > 0",
+                    "nchar(x) != 0L",
+                    "nchar(x) <= 0.0",
+                    "nchar(x) == 0",
+                    "nchar(x) >= 0",
+                    "nchar(x) < 0",
+                    "0 < nchar(x)",
+                    "0 == nchar(x)",
+                ],
+                "nzchar",
+            )
+        );
+    }
+
+    #[test]
     fn test_no_lint_nzchar() {
         // `x %in% NaN` returns missings, but `NaN %in% x` returns TRUE/FALSE.
         expect_no_lint("'' %in% x", "nzchar", None);
@@ -85,6 +112,16 @@ mod tests {
         expect_no_lint(r#"x == "''"#, "nzchar", None);
 
         expect_no_lint(r#"x != "''"#, "nzchar", None);
+
+        expect_no_lint("nchar(x) == 1", "nzchar", None);
+
+        expect_no_lint("nchar(x, type = 'width') == 0", "nzchar", None);
+
+        expect_no_lint("nchar(x, allowNA = TRUE) == 0", "nzchar", None);
+
+        expect_no_lint("nchar(type = 'chars') == 0", "nzchar", None);
+
+        expect_no_lint("nchar() == 0", "nzchar", None);
     }
 
     #[test]
