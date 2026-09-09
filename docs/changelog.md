@@ -27,6 +27,9 @@
 
 ### Bug fixes
 
+* Prevent the `nzchar` rule from treating quote characters as empty strings and
+  support empty raw string literals (#696, @Yousa-Mirage).
+
 * Jarl now properly checks the components of selector, extraction, and namespace
   AST nodes (`[[`, `@`, `$`, `::`, `:::`) (#697, @Yousa-Mirage).
 
