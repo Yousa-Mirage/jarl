@@ -30,6 +30,9 @@
 
 ### Bug fixes
 
+* Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
+  files consistently (#709, @Yousa-Mirage).
+
 * Prevent the `nzchar` rule from treating quote characters as empty strings and
   support empty raw string literals (#696, @Yousa-Mirage).
 
@@ -55,11 +58,14 @@
   autofix now also produces `lengths(x)` instead of the invalid
   `lengths(X = x)` when `X` is passed by name (#671, @Yousa-Mirage).
 
-* Fix language server suppression quickfix positions for non-ASCII text
-  (#676, @Yousa-Mirage).
+* Fix language server suppression quickfix positions for non-ASCII text and
+  Rmd/Qmd chunk insertion positions (#676, #708, @Yousa-Mirage).
 
 * Avoid invalid `literal_coercion` fixes for strings containing quotes
   (#678, @Yousa-Mirage).
+
+* The `expect_type` rule no longer lints `expect_true(is.null(x))`, which was
+  already reported by the `expect_null` rule (#680, @Yousa-Mirage).
 
 * The `pipe_consistency` rule no longer emits invalid fixes when converting
   `magrittr` pipes with a non-call RHS, such as `x %>% sum` (#683, @Yousa-Mirage).
