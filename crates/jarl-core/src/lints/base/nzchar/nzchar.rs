@@ -44,6 +44,79 @@ const FORMALS_NCHAR: Formals = &["x"];
 ///
 /// See `?nzchar`
 pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
+    // Check for comparisons of `nchar(x)` with zero, such as `nchar(x) == 0`
+    if let Some(diagnostic) = nchar_zero_comparison(ast)? {
+        return Ok(Some(diagnostic));
+    }
+
+    let RBinaryExpressionFields { left, operator, right } = ast.as_fields();
+
+    let left = left?;
+    let operator = operator?;
+    let right = right?;
+    let operator_kind = operator.kind();
+
+    if operator_kind != RSyntaxKind::EQUAL2 && operator_kind != RSyntaxKind::NOT_EQUAL {
+        return Ok(None);
+    };
+
+    let left_is_empty_string = left
+        .as_any_r_value()
+        .and_then(|value| get_string_literal_contents(&value.to_trimmed_string()))
+        .is_some_and(|content| content.is_empty());
+    let right_is_empty_string = right
+        .as_any_r_value()
+        .and_then(|value| get_string_literal_contents(&value.to_trimmed_string()))
+        .is_some_and(|content| content.is_empty());
+
+    if (left_is_empty_string && right_is_empty_string)
+        || (!left_is_empty_string && !right_is_empty_string)
+    {
+        return Ok(None);
+    }
+
+    let range = ast.syntax().text_trimmed_range();
+
+    let replacement = if left_is_empty_string {
+        right.to_trimmed_string()
+    } else {
+        left.to_trimmed_string()
+    };
+
+    let diagnostic = match operator_kind {
+        RSyntaxKind::EQUAL2 => Diagnostic::new(
+            ViolationData::new(
+                Rule::NzChar,
+                "`x == \"\"` is inefficient.".to_string(),
+                Some("Use `!nzchar(x)` instead.".to_string()),
+            ),
+            range,
+            Fix::new(
+                range,
+                format!("!nzchar({replacement})"),
+                node_contains_comments(ast.syntax()),
+            ),
+        ),
+        RSyntaxKind::NOT_EQUAL => Diagnostic::new(
+            ViolationData::new(
+                Rule::NzChar,
+                "`x != \"\"` is inefficient.".to_string(),
+                Some("Use `nzchar(x)` instead.".to_string()),
+            ),
+            range,
+            Fix::new(
+                range,
+                format!("nzchar({replacement})"),
+                node_contains_comments(ast.syntax()),
+            ),
+        ),
+        _ => unreachable!("This case is an early return"),
+    };
+
+    Ok(Some(diagnostic))
+}
+
+fn nchar_zero_comparison(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     let RBinaryExpressionFields { left, operator, right } = ast.as_fields();
 
     let left = left?;
@@ -139,64 +212,7 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
         }
     }
 
-    if operator_kind != RSyntaxKind::EQUAL2 && operator_kind != RSyntaxKind::NOT_EQUAL {
-        return Ok(None);
-    };
-
-    let left_is_empty_string = left
-        .as_any_r_value()
-        .and_then(|value| get_string_literal_contents(&value.to_trimmed_string()))
-        .is_some_and(|content| content.is_empty());
-    let right_is_empty_string = right
-        .as_any_r_value()
-        .and_then(|value| get_string_literal_contents(&value.to_trimmed_string()))
-        .is_some_and(|content| content.is_empty());
-
-    if (left_is_empty_string && right_is_empty_string)
-        || (!left_is_empty_string && !right_is_empty_string)
-    {
-        return Ok(None);
-    }
-
-    let range = ast.syntax().text_trimmed_range();
-
-    let replacement = if left_is_empty_string {
-        right.to_trimmed_string()
-    } else {
-        left.to_trimmed_string()
-    };
-
-    let diagnostic = match operator_kind {
-        RSyntaxKind::EQUAL2 => Diagnostic::new(
-            ViolationData::new(
-                Rule::NzChar,
-                "`x == \"\"` is inefficient.".to_string(),
-                Some("Use `!nzchar(x)` instead.".to_string()),
-            ),
-            range,
-            Fix::new(
-                range,
-                format!("!nzchar({replacement})"),
-                node_contains_comments(ast.syntax()),
-            ),
-        ),
-        RSyntaxKind::NOT_EQUAL => Diagnostic::new(
-            ViolationData::new(
-                Rule::NzChar,
-                "`x != \"\"` is inefficient.".to_string(),
-                Some("Use `nzchar(x)` instead.".to_string()),
-            ),
-            range,
-            Fix::new(
-                range,
-                format!("nzchar({replacement})"),
-                node_contains_comments(ast.syntax()),
-            ),
-        ),
-        _ => unreachable!("This case is an early return"),
-    };
-
-    Ok(Some(diagnostic))
+    Ok(None)
 }
 
 fn flip_comparison_operator(operator: RSyntaxKind) -> RSyntaxKind {
