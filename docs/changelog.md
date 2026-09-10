@@ -27,6 +27,8 @@
 
 ### Bug fixes
 
+* Prevent `unused_function` and `unused_object` from falsely reporting non-ASCII names.
+
 * Prevent the `nzchar` rule from treating quote characters as empty strings and
   support empty raw string literals (#696, @Yousa-Mirage).
 
