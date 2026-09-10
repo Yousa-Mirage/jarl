@@ -60,28 +60,23 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     };
 
     // Normalize equivalent comparisons so `nchar(...)` is treated as the left operand.
-    // `zero_on_left` is true for forms such as `0 < nchar(x)`.
-    let normalized_operator = match (operator_kind, zero_on_left) {
-        // `nchar(x) > 0` and `0 < nchar(x)`.
-        (RSyntaxKind::GREATER_THAN, false) | (RSyntaxKind::LESS_THAN, true) => {
-            Some(RSyntaxKind::GREATER_THAN)
+    let normalized_operator = if matches!(
+        operator_kind,
+        RSyntaxKind::GREATER_THAN
+            | RSyntaxKind::LESS_THAN
+            | RSyntaxKind::GREATER_THAN_OR_EQUAL_TO
+            | RSyntaxKind::LESS_THAN_OR_EQUAL_TO
+            | RSyntaxKind::EQUAL2
+            | RSyntaxKind::NOT_EQUAL
+    ) {
+        // like `0 < nchar(x)`
+        if zero_on_left {
+            Some(flip_comparison_operator(operator_kind))
+        } else {
+            Some(operator_kind)
         }
-        // `nchar(x) != 0` and `0 != nchar(x)`.
-        (RSyntaxKind::NOT_EQUAL, _) => Some(RSyntaxKind::NOT_EQUAL),
-        // `nchar(x) <= 0` and `0 >= nchar(x)`.
-        (RSyntaxKind::LESS_THAN_OR_EQUAL_TO, false)
-        | (RSyntaxKind::GREATER_THAN_OR_EQUAL_TO, true) => Some(RSyntaxKind::LESS_THAN_OR_EQUAL_TO),
-        // `nchar(x) == 0` and `0 == nchar(x)`.
-        (RSyntaxKind::EQUAL2, _) => Some(RSyntaxKind::EQUAL2),
-        // `nchar(x) >= 0` and `0 <= nchar(x)`.
-        (RSyntaxKind::GREATER_THAN_OR_EQUAL_TO, false)
-        | (RSyntaxKind::LESS_THAN_OR_EQUAL_TO, true) => Some(RSyntaxKind::GREATER_THAN_OR_EQUAL_TO),
-        // `nchar(x) < 0` and `0 > nchar(x)`.
-        (RSyntaxKind::LESS_THAN, false) | (RSyntaxKind::GREATER_THAN, true) => {
-            Some(RSyntaxKind::LESS_THAN)
-        }
-        // Operators other than the six comparisons above are not supported.
-        _ => None,
+    } else {
+        None
     };
 
     if let Some(nchar_expression) = nchar_expression
@@ -202,6 +197,19 @@ pub fn nzchar(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     };
 
     Ok(Some(diagnostic))
+}
+
+fn flip_comparison_operator(operator: RSyntaxKind) -> RSyntaxKind {
+    match operator {
+        // Swapping operands turns `>` into `<` and vice versa.
+        RSyntaxKind::GREATER_THAN => RSyntaxKind::LESS_THAN,
+        RSyntaxKind::LESS_THAN => RSyntaxKind::GREATER_THAN,
+        // Swapping operands turns `>=` into `<=` and vice versa.
+        RSyntaxKind::GREATER_THAN_OR_EQUAL_TO => RSyntaxKind::LESS_THAN_OR_EQUAL_TO,
+        RSyntaxKind::LESS_THAN_OR_EQUAL_TO => RSyntaxKind::GREATER_THAN_OR_EQUAL_TO,
+        // Equality and inequality are unchanged when operands are swapped.
+        operator => operator,
+    }
 }
 
 fn is_zero_literal(expression: &AnyRExpression) -> bool {
