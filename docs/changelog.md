@@ -30,6 +30,9 @@
 * Prevent `unused_function` and `unused_object` from falsely reporting non-ASCII
   names (#706, @Yousa-Mirage).
 
+* Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
+  files consistently (#709, @Yousa-Mirage).
+
 * Prevent the `nzchar` rule from treating quote characters as empty strings and
   support empty raw string literals (#696, @Yousa-Mirage).
 
@@ -55,8 +58,8 @@
   autofix now also produces `lengths(x)` instead of the invalid
   `lengths(X = x)` when `X` is passed by name (#671, @Yousa-Mirage).
 
-* Fix language server suppression quickfix positions for non-ASCII text
-  (#676, @Yousa-Mirage).
+* Fix language server suppression quickfix positions for non-ASCII text and
+  Rmd/Qmd chunk insertion positions (#676, #708, @Yousa-Mirage).
 
 * Avoid invalid `literal_coercion` fixes for strings containing quotes
   (#678, @Yousa-Mirage).
