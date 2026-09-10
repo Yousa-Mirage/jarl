@@ -21,7 +21,7 @@
   argument, e.g. `expect_equal(nrow(x), length(y))` (#684).
 
 * The `nzchar` rule now also reports comparisons of `nchar(x)` with zero, such
-  as `nchar(x) == 0`.
+  as `nchar(x) == 0` (#705, @Yousa-Mirage).
 
 * The LSP now also publishes diagnostics when opening a file (#685).
 
