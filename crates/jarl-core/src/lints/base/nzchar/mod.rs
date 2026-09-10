@@ -73,9 +73,21 @@ mod tests {
     fn test_lint_nchar_zero_comparisons() {
         assert_snapshot!(
             "nchar_zero_comparisons",
-            snapshot_lint(
-                "nchar(x) > 0\nnchar(x) != 0L\nnchar(x) <= 0.0\nnchar(x) == 0\nnchar(x) >= 0\nnchar(x) < 0\n0 < nchar(x)\n0 == nchar(x)"
-            )
+            snapshot_lint(concat!(
+                "nchar(x) > 0\n",
+                "nchar(x) != 0L\n",
+                "nchar(x) <= 0.0\n",
+                "nchar(x) == 0\n",
+                "nchar(x) >= 0\n",
+                "nchar(x) < 0\n",
+                "0 < nchar(x)\n",
+                "0 != nchar(x)\n",
+                "0 >= nchar(x)\n",
+                "0 == nchar(x)\n",
+                "0 <= nchar(x)\n",
+                "0 > nchar(x)\n",
+                "nchar(x = x) > 0",
+            ),)
         );
 
         assert_snapshot!(
@@ -89,7 +101,12 @@ mod tests {
                     "nchar(x) >= 0",
                     "nchar(x) < 0",
                     "0 < nchar(x)",
+                    "0 != nchar(x)",
+                    "0 >= nchar(x)",
+                    "0 <= nchar(x)",
                     "0 == nchar(x)",
+                    "0 > nchar(x)",
+                    "nchar(x = x) > 0",
                 ],
                 "nzchar",
             )
@@ -135,6 +152,7 @@ mod tests {
                     "# leading comment\nx == ''",
                     "x # comment\n== ''",
                     "x == '' # trailing comment",
+                    "nchar(x) # comment\n> 0",
                 ],
                 "nzchar"
             )
