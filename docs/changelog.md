@@ -27,6 +27,8 @@
 
 ### Bug fixes
 
+* Prevent `unused_object` from reporting objects exported by `exportPattern()`.
+
 * Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
   files consistently (#709, @Yousa-Mirage).
 
