@@ -27,6 +27,8 @@
 
 ### Bug fixes
 
+* Preserve linting for roxygen examples containing R braces inside
+  `\dontrun{}`, `\donttest{}`, or `\dontshow{}` wrappers.
 * Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
   files consistently (#709, @Yousa-Mirage).
 
