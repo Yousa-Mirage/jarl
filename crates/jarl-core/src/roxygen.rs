@@ -610,6 +610,28 @@ foo <- function(x) x
     }
 
     #[test]
+    fn test_macro_line_matching_preserves_multiline_raw_strings() {
+        assert_eq!(
+            roxygen_macro_lines_to_remove(&[r"\dontrun{", r#"message(r"("#, "}", r#")")"#, "}",]),
+            vec![0, 4]
+        );
+    }
+
+    #[test]
+    fn test_macro_line_matching_ignores_macro_like_raw_string_content() {
+        assert_eq!(
+            roxygen_macro_lines_to_remove(&[
+                r"\dontrun{",
+                r#"s <- r"("#,
+                r"\donttest{",
+                r#"")""#,
+                "}",
+            ]),
+            vec![0, 4]
+        );
+    }
+
+    #[test]
     fn test_donttest_stripped() {
         let source = "\
 #' @examples
