@@ -207,6 +207,8 @@ fn roxygen_macro_lines_to_remove<T: AsRef<str>>(code_lines: &[T]) -> Vec<usize> 
                 match mode {
                     StringMode::Quoted(quote) => {
                         if bytes[pos] == b'\\' {
+                            // A backslash escapes the next byte, including a
+                            // line-ending escape when it is the last byte.
                             pos += 1;
                             if pos < bytes.len() {
                                 pos += 1;
@@ -247,6 +249,8 @@ fn roxygen_macro_lines_to_remove<T: AsRef<str>>(code_lines: &[T]) -> Vec<usize> 
                 b'r' | b'R' if matches!(bytes.get(pos + 1), Some(b'\'' | b'"')) => {
                     let quote = bytes[pos + 1];
                     let mut delimiter_pos = pos + 2;
+                    // R raw strings may use dashes to make the closing fence
+                    // unambiguous, for example `r"--[text]--"`.
                     while bytes.get(delimiter_pos) == Some(&b'-') {
                         delimiter_pos += 1;
                     }
@@ -266,7 +270,10 @@ fn roxygen_macro_lines_to_remove<T: AsRef<str>>(code_lines: &[T]) -> Vec<usize> 
                         });
                         pos = delimiter_pos + 1;
                     } else {
-                        pos += 1;
+                        // This is not a valid raw-string opener, so treat its
+                        // quote as the start of a regular string directly.
+                        string_mode = Some(StringMode::Quoted(quote));
+                        pos += 2;
                     }
                 }
                 b'{' => {
@@ -602,9 +609,44 @@ foo <- function(x) x
     }
 
     #[test]
+    fn test_macro_line_matching_ignores_escaped_string_content() {
+        assert_eq!(
+            roxygen_macro_lines_to_remove(&[r"\dontrun{", r#"message("\"}")"#, "}"]),
+            vec![0, 2]
+        );
+    }
+
+    #[test]
+    fn test_macro_line_matching_preserves_escaped_multiline_strings() {
+        assert_eq!(
+            roxygen_macro_lines_to_remove(&[r"\dontrun{", r#""continued\"#, r#"}bar""#, "}"]),
+            vec![0, 3]
+        );
+    }
+
+    #[test]
     fn test_macro_line_matching_ignores_raw_strings() {
         assert_eq!(
             roxygen_macro_lines_to_remove(&[r"\dontrun{", r####"message(r"{foo}")"####, "}"]),
+            vec![0, 2]
+        );
+    }
+
+    #[test]
+    fn test_macro_line_matching_handles_raw_string_delimiters() {
+        for line in [r#"message(r"[foo]")"#, r#"message(r"--[foo]--")"#] {
+            assert_eq!(
+                roxygen_macro_lines_to_remove(&[r"\dontrun{", line, "}"]),
+                vec![0, 2],
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_macro_line_matching_falls_back_for_invalid_raw_strings() {
+        assert_eq!(
+            roxygen_macro_lines_to_remove(&[r"\dontrun{", r#"message(r"not } raw")"#, "}"]),
             vec![0, 2]
         );
     }
