@@ -7,7 +7,8 @@
 Checks for `substr()` and `substring()` calls that can be replaced with
 `startsWith()` or `endsWith()`.
 Only comparisons to non-empty string literals with matching substring
-boundaries are reported. Ordinary strings containing escapes are skipped.
+boundaries are reported. Strings containing carriage returns, and ordinary
+strings containing escapes, are skipped.
 
 ## Why is this bad?
 

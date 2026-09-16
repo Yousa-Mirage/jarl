@@ -12,7 +12,8 @@ use oak_core::syntax_ext::RStringValueExt;
 /// Checks for `substr()` and `substring()` calls that can be replaced with
 /// `startsWith()` or `endsWith()`.
 /// Only comparisons to non-empty string literals with matching substring
-/// boundaries are reported. Ordinary strings containing escapes are skipped.
+/// boundaries are reported. Strings containing carriage returns, and ordinary
+/// strings containing escapes, are skipped.
 ///
 /// ## Why is this bad?
 ///
@@ -147,8 +148,9 @@ fn literal_string_length(expr: &AnyRExpression) -> Option<usize> {
     let open = string.open_token().ok()?;
     let is_raw = open.text_trimmed().starts_with(['r', 'R']);
 
-    // Token contents retain escapes, whose source length differs from R's nchar().
-    if content.is_empty() || (!is_raw && content.contains('\\')) {
+    // R normalizes source line endings; escapes also change the runtime length.
+    // Skip both rather than count their source spelling.
+    if content.is_empty() || content.contains('\r') || (!is_raw && content.contains('\\')) {
         return None;
     }
     Some(content.chars().count())

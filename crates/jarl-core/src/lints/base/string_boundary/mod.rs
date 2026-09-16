@@ -224,6 +224,40 @@ mod tests {
     }
 
     #[test]
+    fn test_string_boundary_carriage_returns_no_lint() {
+        // These Rust escapes insert actual CR/CRLF bytes into the R source.
+        for literal in ["\"a\r\nb\"", "r\"(a\r\nb)\"", "\"a\rb\"", "r\"(a\rb)\""] {
+            for width in [3, 4] {
+                expect_no_lint(
+                    &format!("substr(x, 1, {width}) == {literal}"),
+                    "string_boundary",
+                    None,
+                );
+                expect_no_lint(
+                    &format!(
+                        "substring(x, nchar(x) - {}, nchar(x)) == {literal}",
+                        width - 1
+                    ),
+                    "string_boundary",
+                    None,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_string_boundary_line_feeds() {
+        for literal in ["\"a\nb\"", "r\"(a\nb)\""] {
+            for code in [
+                format!("substr(x, 1, 3) == {literal}"),
+                format!("substring(x, nchar(x) - 2, nchar(x)) == {literal}"),
+            ] {
+                assert_eq!(check_code(&code, "string_boundary", None).len(), 1);
+            }
+        }
+    }
+
+    #[test]
     fn test_string_boundary_with_comments_no_fix() {
         // Should detect lint but skip fix when comments are present to avoid destroying them
         assert_snapshot!(
