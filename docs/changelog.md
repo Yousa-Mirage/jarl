@@ -7,12 +7,27 @@
 * The `jarl.toml` argument `assignment` (deprecated since 0.5.0) is removed. Use
   the rule-specific option `[lint.assignment]` instead (#663).
 
+* A fix can now edit several places of a file at once, so in the `json` output
+  format the `fix` object contains a list of edits instead of a single
+  `content`/`range` pair (#700):
+
+  ```json
+  "fix": { "edits": [ { "range": [0, 13], "content": "anyNA(x)" } ], "to_skip": false }
+  ```
+
 ### Changes
+
+* The config file can be named `.jarl.toml` as well as `jarl.toml`. Both names
+  are equivalent, and a directory containing both is now an error instead of
+  silently using `jarl.toml` (#717).
 
 * `expect_length` no longer reports cases where `length()` is in the `expected`
   argument, e.g. `expect_equal(nrow(x), length(y))` (#684).
 
 * The LSP now also publishes diagnostics when opening a file (#685).
+
+* The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
+  cannot be applied because the violation is in part of `@examples` (#702).
 
 ### Bug fixes
 
@@ -20,6 +35,18 @@
   compared string's character length and handles reordered named arguments.
   Its fixes are now unsafe because they can change attributes, input coercion,
   or the number of times an expression is evaluated (@Yousa-Mirage).
+
+* Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
+  files consistently (#709, @Yousa-Mirage).
+
+* Prevent the `nzchar` rule from treating quote characters as empty strings and
+  support empty raw string literals (#696, @Yousa-Mirage).
+
+* Jarl now properly checks the components of selector, extraction, and namespace
+  AST nodes (`[[`, `@`, `$`, `::`, `:::`) (#697, @Yousa-Mirage).
+
+* The `github` and `sarif` output formats now report parsing errors to stderr
+  instead of silently dropping them (#695, @Yousa-Mirage).
 
 * Prevent the `sample_int` rule from panicking on calls with missing arguments
   (#687, @Yousa-Mirage).
@@ -37,11 +64,14 @@
   autofix now also produces `lengths(x)` instead of the invalid
   `lengths(X = x)` when `X` is passed by name (#671, @Yousa-Mirage).
 
-* Fix language server suppression quickfix positions for non-ASCII text
-  (#676, @Yousa-Mirage).
+* Fix language server suppression quickfix positions for non-ASCII text and
+  Rmd/Qmd chunk insertion positions (#676, #708, @Yousa-Mirage).
 
 * Avoid invalid `literal_coercion` fixes for strings containing quotes
   (#678, @Yousa-Mirage).
+
+* The `expect_type` rule no longer lints `expect_true(is.null(x))`, which was
+  already reported by the `expect_null` rule (#680, @Yousa-Mirage).
 
 * The `pipe_consistency` rule no longer emits invalid fixes when converting
   `magrittr` pipes with a non-call RHS, such as `x %>% sum` (#683, @Yousa-Mirage).
