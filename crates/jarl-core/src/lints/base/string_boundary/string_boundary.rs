@@ -3,7 +3,7 @@ use crate::rule_set::Rule;
 use crate::utils::{Formals, get_arg, get_function_name, node_contains_comments};
 use air_r_syntax::*;
 use biome_rowan::{AstNode, AstSeparatedList};
-use oak_core::syntax_ext::RStringValueExt;
+use oak_semantic::effects::CallContext;
 
 /// Version added: 0.3.0
 ///
@@ -79,72 +79,50 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     } else {
         &["text", "first", "last"]
     };
-    let x_arg =
-        unwrap_or_return_none!(get_arg(call, formals, formals[0]).and_then(|arg| arg.value()));
-    let start_arg =
-        unwrap_or_return_none!(get_arg(call, formals, formals[1]).and_then(|arg| arg.value()));
-    let end_arg =
-        unwrap_or_return_none!(get_arg(call, formals, formals[2]).and_then(|arg| arg.value()));
     let width = unwrap_or_return_none!(literal_string_length(string_expr));
+    let bound = CallContext::default().bind_arguments(call, formals);
+    let x_arg = unwrap_or_return_none!(bound.get(formals[0]));
+    let start_arg = unwrap_or_return_none!(bound.get(formals[1]));
+    let end_arg = unwrap_or_return_none!(bound.get(formals[2]));
 
     // Get the string being compared
     let string_text = string_expr.syntax().text_trimmed();
     let x_text = x_arg.syntax().text_trimmed();
 
-    if literal_integer(&start_arg) == Some(1) && literal_integer(&end_arg) == Some(width) {
-        let range = ast.syntax().text_trimmed_range();
+    let (replacement_fn, boundary) = if literal_integer(start_arg) == Some(1)
+        && literal_integer(end_arg) == Some(width)
+    {
+        ("startsWith", "an initial")
+    } else if is_nchar_of_same_expr(end_arg, x_arg) && is_suffix_start(start_arg, x_arg, width) {
+        ("endsWith", "a terminal")
+    } else {
+        return Ok(None);
+    };
 
-        // Build the replacement: startsWith(x, "string") or !startsWith(x, "string")
-        let replacement = if op_kind == RSyntaxKind::NOT_EQUAL {
-            format!("!startsWith({}, {})", x_text, string_text)
-        } else {
-            format!("startsWith({}, {})", x_text, string_text)
-        };
-
-        let diagnostic = Diagnostic::new(
-            ViolationData::new(
-                Rule::StringBoundary,
-                format!(
-                    "Using `{func_name}()` to detect an initial substring is hard to read and inefficient."
-                ),
-                Some("Use `startsWith()` instead.".to_string()),
+    let range = ast.syntax().text_trimmed_range();
+    let negation = if op_kind == RSyntaxKind::NOT_EQUAL {
+        "!"
+    } else {
+        ""
+    };
+    let replacement = format!("{negation}{replacement_fn}({x_text}, {string_text})");
+    Ok(Some(Diagnostic::new(
+        ViolationData::new(
+            Rule::StringBoundary,
+            format!(
+                "Using `{func_name}()` to detect {boundary} substring is hard to read and inefficient."
             ),
-            range,
-            Fix::new(range, replacement, node_contains_comments(ast.syntax())),
-        );
-        return Ok(Some(diagnostic));
-    }
-
-    if is_nchar_of_same_expr(&end_arg, &x_arg) && is_suffix_start(&start_arg, &x_arg, width) {
-        let range = ast.syntax().text_trimmed_range();
-
-        // Build the replacement: endsWith(x, "string") or !endsWith(x, "string")
-        let replacement = if op_kind == RSyntaxKind::NOT_EQUAL {
-            format!("!endsWith({}, {})", x_text, string_text)
-        } else {
-            format!("endsWith({}, {})", x_text, string_text)
-        };
-
-        let diagnostic = Diagnostic::new(
-            ViolationData::new(
-                Rule::StringBoundary,
-                format!(
-                    "Using `{func_name}()` to detect a terminal substring is hard to read and inefficient."
-                ),
-                Some("Use `endsWith()` instead.".to_string()),
-            ),
-            range,
-            Fix::new(range, replacement, node_contains_comments(ast.syntax())),
-        );
-        return Ok(Some(diagnostic));
-    }
-
-    Ok(None)
+            Some(format!("Use `{replacement_fn}()` instead.")),
+        ),
+        range,
+        Fix::new(range, replacement, node_contains_comments(ast.syntax())),
+    )))
 }
 
 fn literal_string_length(expr: &AnyRExpression) -> Option<usize> {
     let string = expr.as_any_r_value()?.as_r_string_value()?;
-    let content = string.string_text()?;
+    let content_token = string.content_token()?;
+    let content = content_token.text_trimmed();
     let open = string.open_token().ok()?;
     let is_raw = open.text_trimmed().starts_with(['r', 'R']);
 
@@ -191,44 +169,18 @@ fn is_suffix_start(start: &AnyRExpression, x: &AnyRExpression, width: usize) -> 
 
 /// Check if end_expr is nchar(x_expr) where x_expr matches the first argument
 fn is_nchar_of_same_expr(end_expr: &AnyRExpression, x_expr: &AnyRExpression) -> bool {
-    // Check if end_expr is a function call
-    let call = match end_expr {
-        AnyRExpression::RCall(c) => c,
-        _ => return false,
+    let AnyRExpression::RCall(call) = end_expr else {
+        return false;
     };
-
-    // Check if it's nchar()
-    let function = match call.function() {
-        Ok(f) => f,
-        _ => return false,
+    let Ok(function) = call.function() else {
+        return false;
     };
-
-    let func_name = get_function_name(function);
-    if func_name != "nchar" {
+    if get_function_name(function) != "nchar"
+        || !call.arguments().is_ok_and(|args| args.items().len() == 1)
+    {
         return false;
     }
-
-    // Get the argument to nchar()
-    let arguments = match call.arguments() {
-        Ok(a) => a,
-        _ => return false,
-    };
-
-    if arguments.items().len() != 1 {
-        return false;
-    }
-
-    // Get the expression from the first argument
-    let nchar_arg = match get_arg(call, &["x"], "x").and_then(|arg| arg.value()) {
-        Some(v) => v,
-        None => return false,
-    };
-
-    // Compare if nchar's argument matches x_expr syntactically
-    expressions_match(&nchar_arg, x_expr)
-}
-
-/// Check if two expressions are syntactically identical
-fn expressions_match(expr1: &AnyRExpression, expr2: &AnyRExpression) -> bool {
-    expr1.syntax().text_trimmed() == expr2.syntax().text_trimmed()
+    get_arg(call, &["x"], "x")
+        .and_then(|arg| arg.value())
+        .is_some_and(|arg| arg.syntax().text_trimmed() == x_expr.syntax().text_trimmed())
 }
