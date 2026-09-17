@@ -24,6 +24,8 @@
 * `expect_length` no longer reports cases where `length()` is in the `expected`
   argument, e.g. `expect_equal(nrow(x), length(y))` (#684).
 
+* Only use placeholder text in messages and suggestions (#722).
+
 * The LSP now also publishes diagnostics when opening a file (#685).
 
 * The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
