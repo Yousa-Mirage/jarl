@@ -24,6 +24,8 @@
 * `expect_length` no longer reports cases where `length()` is in the `expected`
   argument, e.g. `expect_equal(nrow(x), length(y))` (#684).
 
+* Only use placeholder text in messages and suggestions (#722).
+
 * The LSP now also publishes diagnostics when opening a file (#685).
 
 * The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
@@ -78,6 +80,10 @@
 
 * Prevent incorrect `dplyr_filter_out` fixes caused by matching `is.na()` guard
   arguments as substrings of other identifiers (#681, @Yousa-Mirage).
+
+* In R Markdown and Quarto documents, `unreachable_code` no longer reports code
+  in chunks following a chunk that would stop evaluation but is either unevaluated or
+  has `error: true` (#724).
 
 ## 0.6.0
 
