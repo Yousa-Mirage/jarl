@@ -40,6 +40,9 @@
   Its fixes are now unsafe because they can change attributes, input coercion,
   or the number of times an expression is evaluated (@Yousa-Mirage).
 
+* Prevent `unused_function` and `unused_object` from falsely reporting non-ASCII
+  names (#706, @Yousa-Mirage).
+
 * Handle uppercase `.RMD`/`.QMD` extensions (and any other letter-case variant)
   files consistently (#709, @Yousa-Mirage).
 
