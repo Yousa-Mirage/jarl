@@ -54,6 +54,7 @@ mod tests {
         //   substring(s <- "abcdefg", 2L) == "efg" is not TRUE, but endsWith(s, "efg")
         //   is. And if `s` contains strings of varying lengths, there's no equivalent.
         expect_no_lint("substring(x, 2L)", "string_boundary", None);
+        expect_no_lint("substring(x, 1) == 'a'", "string_boundary", None);
 
         for code in [
             "substr(x, 1, 2) == 'a'",
