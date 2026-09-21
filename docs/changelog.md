@@ -33,12 +33,8 @@
 
 ### Bug fixes
 
-* The `string_boundary` rule now requires substring boundaries to match the
-  compared string's character length and handles reordered named arguments.
-  Strings containing carriage returns are skipped to avoid miscounting CRLF
-  line endings normalized by R.
-  Its fixes are now unsafe because they can change attributes, input coercion,
-  or the number of times an expression is evaluated (@Yousa-Mirage).
+* Fix `string_boundary` false positives for mismatched substring widths and
+  reordered named arguments, and mark its fixes as unsafe (#698, @Yousa-Mirage).
 
 * Prevent `unused_function` and `unused_object` from falsely reporting non-ASCII
   names (#706, @Yousa-Mirage).
