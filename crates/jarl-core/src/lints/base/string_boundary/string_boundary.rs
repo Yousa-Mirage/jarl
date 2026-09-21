@@ -42,8 +42,7 @@ use oak_semantic::effects::CallContext;
 pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     let RBinaryExpressionFields { left, operator, right } = ast.as_fields();
 
-    let operator = operator?;
-    let op_kind = operator.kind();
+    let op_kind = operator?.kind();
 
     // Only check == and != operators
     if op_kind != RSyntaxKind::EQUAL2 && op_kind != RSyntaxKind::NOT_EQUAL {
@@ -62,19 +61,23 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
         return Ok(None);
     };
 
-    let function = call.function()?;
-    let func_name = get_function_name(function);
+    // Only check for calls to substr() and substring()
+    let func_name = get_function_name(call.function()?);
     let formals: Formals = match func_name.as_str() {
         "substr" => &["x", "start", "stop"],
         "substring" => &["text", "first", "last"],
         _ => return Ok(None),
     };
 
+    // Only check for calls with exactly 3 arguments
     if call.arguments()?.items().len() != 3 {
         return Ok(None);
     }
 
+    // Only check for comparisons to non-empty string literals
     let width = unwrap_or_return_none!(literal_string_length(string_expr));
+
+    // Bind the call arguments to the formal parameters and extract them
     let bound = CallContext::default().bind_arguments(call, formals);
     let x_arg = unwrap_or_return_none!(bound.get(formals[0]));
     let start_arg = unwrap_or_return_none!(bound.get(formals[1]));
@@ -84,6 +87,7 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     let string_text = string_expr.syntax().text_trimmed();
     let x_text = x_arg.syntax().text_trimmed();
 
+    // Check if the call is a substring at the start or end of the string
     let (replacement_fn, boundary) = if literal_integer(start_arg) == Some(1)
         && literal_integer(end_arg) == Some(width)
     {
@@ -114,6 +118,7 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     )))
 }
 
+// Check if the expression is a string literal with a known length, returning None if it is not.
 fn literal_string_length(expr: &AnyRExpression) -> Option<usize> {
     let string = expr.as_any_r_value()?.as_r_string_value()?;
     let content_token = string.content_token()?;
@@ -129,6 +134,7 @@ fn literal_string_length(expr: &AnyRExpression) -> Option<usize> {
     Some(content.chars().count())
 }
 
+// Check if the expression is an integer literal, returning its value if it is, or None if it is not.
 fn literal_integer(expr: &AnyRExpression) -> Option<usize> {
     let token = match expr.as_any_r_value()? {
         AnyRValue::RIntegerValue(value) => value.value_token().ok()?,
@@ -144,6 +150,7 @@ fn literal_integer(expr: &AnyRExpression) -> Option<usize> {
     (value >= 0.0 && value <= f64::from(i32::MAX) && value.fract() == 0.0).then_some(value as usize)
 }
 
+// Check if start_expr is nchar(x_expr) - (width - 1) where x_expr matches the first argument
 fn is_suffix_start(start: &AnyRExpression, x: &AnyRExpression, width: usize) -> bool {
     if width == 1 && is_nchar_of_same_expr(start, x) {
         return true;
@@ -162,7 +169,7 @@ fn is_suffix_start(start: &AnyRExpression, x: &AnyRExpression, width: usize) -> 
             .is_ok_and(|right| literal_integer(&right) == width.checked_sub(1))
 }
 
-/// Check if end_expr is nchar(x_expr) where x_expr matches the first argument
+// Check if end_expr is nchar(x_expr) where x_expr matches the first argument
 fn is_nchar_of_same_expr(end_expr: &AnyRExpression, x_expr: &AnyRExpression) -> bool {
     let AnyRExpression::RCall(call) = end_expr else {
         return false;
