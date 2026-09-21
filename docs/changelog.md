@@ -15,6 +15,10 @@
   "fix": { "edits": [ { "range": [0, 13], "content": "anyNA(x)" } ], "to_skip": false }
   ```
 
+### Deprecations
+
+* The `internal_function` rule is deprecated. Use `undesirable_operator` instead.
+
 ### Changes
 
 * The config file can be named `.jarl.toml` as well as `jarl.toml`. Both names
@@ -30,6 +34,8 @@
 
 * The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
   cannot be applied because the violation is in part of `@examples` (#702).
+
+* Added the `undesirable_operator` rule (#657).
 
 ### Bug fixes
 
