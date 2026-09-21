@@ -109,6 +109,15 @@ mod tests {
         ] {
             expect_no_lint(code, "string_boundary", None);
         }
+
+        for code in [
+            "foo(x, 1, 2) == 'ab'",
+            "'ab' != foo(x, 1, 2)",
+            "foo(x, nchar(x) - 1, nchar(x)) == 'ab'",
+            "'ab' != foo(x, nchar(x) - 1, nchar(x))",
+        ] {
+            expect_no_lint(code, "string_boundary", None);
+        }
     }
 
     #[test]

@@ -53,7 +53,7 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     let left = left?;
     let right = right?;
 
-    // Check if either side is a function call to substr or substring
+    // Find a function call on either side of the comparison.
     let (call, string_expr) = if let AnyRExpression::RCall(c) = &left {
         (c, &right)
     } else if let AnyRExpression::RCall(c) = &right {
@@ -62,23 +62,18 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
         return Ok(None);
     };
 
-    // Check if it's substr or substring
     let function = call.function()?;
     let func_name = get_function_name(function);
-
-    if func_name != "substr" && func_name != "substring" {
-        return Ok(None);
-    }
+    let formals: Formals = match func_name.as_str() {
+        "substr" => &["x", "start", "stop"],
+        "substring" => &["text", "first", "last"],
+        _ => return Ok(None),
+    };
 
     if call.arguments()?.items().len() != 3 {
         return Ok(None);
     }
 
-    let formals: Formals = if func_name == "substr" {
-        &["x", "start", "stop"]
-    } else {
-        &["text", "first", "last"]
-    };
     let width = unwrap_or_return_none!(literal_string_length(string_expr));
     let bound = CallContext::default().bind_arguments(call, formals);
     let x_arg = unwrap_or_return_none!(bound.get(formals[0]));
