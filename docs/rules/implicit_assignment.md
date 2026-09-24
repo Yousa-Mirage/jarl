@@ -28,7 +28,7 @@ namespaced calls, e.g. `skipped-functions = ["list2"]` will ignore `list2()` and
 
 ```toml
 skipped-functions = [
-    "alist", 
+    "alist",
     "expect_error",         # from {testthat}
     "expect_warning",       # from {testthat}
     "expect_message",       # from {testthat}
