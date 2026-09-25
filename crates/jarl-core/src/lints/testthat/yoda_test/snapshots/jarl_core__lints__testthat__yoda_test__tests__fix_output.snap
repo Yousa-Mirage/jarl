@@ -1,6 +1,6 @@
 ---
 source: crates/jarl-core/src/lints/testthat/yoda_test/mod.rs
-expression: "get_fixed_text(vec![\"expect_equal(42, calculate_total(items))\",\n\"testthat::expect_identical('ready', get_status(job))\",\n\"testthat:::expect_setequal(1L, x)\", \"expect_equal(-1, x)\",\n\"expect_equal((2 + 1i), x)\", \"expect_equal(r\\\"(a\\\\b)\\\", x)\",\n\"expect_equal(\\n  \\\"你好\\\",\\n  foo(x)\\n)\",\n\"# leading comment\\nexpect_equal(  2 ,  foo(x)  ) # trailing comment\",\n\"x %$% expect_equal(2, value)\", \"x %>% { expect_equal(2, .) }\",\n\"expect_equal(2, x |> foo())\", \"expect_equal(2, expect_identical('a', x))\",],\n\"yoda_test\", None)"
+expression: "get_fixed_text(vec![\"expect_equal(42, calculate_total(items))\",\n\"testthat::expect_identical('ready', get_status(job))\",\n\"testthat:::expect_setequal(1L, x)\", \"expect_equal(-1, x)\",\n\"expect_equal((2 + 1i), x)\", \"expect_equal(r\\\"(a\\\\b)\\\", x)\",\n\"expect_equal(\\n  \\\"你好\\\",\\n  foo(x)\\n)\",\n\"# leading comment\\nexpect_equal(  2 ,  foo(x)  ) # trailing comment\",\n\"x %$% expect_equal(2, value)\", \"x %>% { expect_equal(2, .) }\",\n\"expect_equal(2, x |> foo())\", \"expect_equal(2, x) |> identity()\",\n\"expect_equal(2, expect_identical('a', x))\",], \"yoda_test\", None)"
 ---
 OLD:
 ====
@@ -86,6 +86,13 @@ expect_equal(2, x |> foo())
 NEW:
 ====
 expect_equal(x |> foo(), 2)
+
+OLD:
+====
+expect_equal(2, x) |> identity()
+NEW:
+====
+expect_equal(x, 2) |> identity()
 
 OLD:
 ====

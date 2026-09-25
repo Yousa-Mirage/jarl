@@ -23,6 +23,7 @@ mod tests {
             "expect_equal(1 * 2, x)",
             "expect_equal(1 + 2 + 3, x)",
             "expect_equal(1 + x, x)",
+            "expect_equal((x) + 1, x)",
             "expect_equal(-x, x)",
             "expect_equal(!TRUE, x)",
             "expect_equal(-'a', x)",
@@ -72,6 +73,7 @@ mod tests {
             "-1",
             "((1))",
             "1 + 1",
+            "(1) + 1",
             "2 + 1i",
         ] {
             let code = format!("expect_equal({literal}, foo(x))");
@@ -120,6 +122,7 @@ mod tests {
                     "x %$% expect_equal(2, value)",
                     "x %>% { expect_equal(2, .) }",
                     "expect_equal(2, x |> foo())",
+                    "expect_equal(2, x) |> identity()",
                     "expect_equal(2, expect_identical('a', x))",
                 ],
                 "yoda_test",
