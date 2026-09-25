@@ -23,6 +23,7 @@
 
 * New rules:
 
+  * `library_call` (#701)
   * `undesirable_operator` (#657, @christopherkenny)
   * `yoda_test` (#733, @Yousa-Mirage).
 

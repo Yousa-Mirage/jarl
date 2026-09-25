@@ -38,8 +38,8 @@ and `base::is.null()`.
 
 ```toml
 skipped-functions = [
-    "is.null", 
-    "is.na", 
+    "is.null",
+    "is.na",
     "missing"
 ]
 ```
