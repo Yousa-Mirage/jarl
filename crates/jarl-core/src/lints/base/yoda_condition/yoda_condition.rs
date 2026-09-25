@@ -27,7 +27,7 @@ const FORMALS_EXPECT: Formals = &["object", "expected"];
 /// and cannot be fixed automatically.
 ///
 /// This rule is **disabled by default**. Select it either with the rule name
-/// `"yoda_test"` or with the rule group `"TESTTHAT"`.
+/// `"yoda_condition"` or with the rule group `"TESTTHAT"`.
 ///
 /// ## Example
 ///
@@ -44,7 +44,92 @@ const FORMALS_EXPECT: Formals = &["object", "expected"];
 /// expect_setequal(unique(x), 1L)
 /// ```
 /// <!-- docs: end -->
-pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic>> {
+pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
+    let operator = ast.operator()?;
+    let replacement_operator = match operator.kind() {
+        RSyntaxKind::EQUAL2 => "==",
+        RSyntaxKind::NOT_EQUAL => "!=",
+        RSyntaxKind::LESS_THAN => ">",
+        RSyntaxKind::LESS_THAN_OR_EQUAL_TO => ">=",
+        RSyntaxKind::GREATER_THAN => "<",
+        RSyntaxKind::GREATER_THAN_OR_EQUAL_TO => "<=",
+        _ => return Ok(None),
+    };
+
+    let left = ast.left()?;
+    if !is_literal(&left)? {
+        return Ok(None);
+    }
+    let right = ast.right()?;
+    let range = ast.syntax().text_trimmed_range();
+    if is_literal(&right)? {
+        return Ok(Some(Diagnostic::new(
+            ViolationData::new(
+                Rule::YodaCondition,
+                "Comparing two literals does not test an actual result.".to_string(),
+                Some("Compare an actual result with the expected literal instead.".to_string()),
+            ),
+            range,
+            Fix::empty(),
+        )));
+    }
+
+    // A right operand can contain a low-precedence prefix or an open-ended
+    // body. Keep it grouped when moving it left, e.g. `1 == !x` -> `(!x) == 1`.
+    let left_text = left.to_trimmed_string();
+    let right_text = if needs_comparison_parentheses(&right)? {
+        format!("({})", right.to_trimmed_text())
+    } else {
+        right.to_trimmed_string()
+    };
+    let suggestion = format!("Use `{right_text} {replacement_operator} {left_text}` instead.");
+
+    Ok(Some(Diagnostic::new(
+        ViolationData::new(
+            Rule::YodaCondition,
+            "The actual result should come before the expected literal.".to_string(),
+            Some(suggestion),
+        ),
+        range,
+        Fix::from_edits(
+            vec![
+                Edit::replacement(left.syntax().text_trimmed_range(), right_text),
+                Edit::replacement(
+                    operator.text_trimmed_range(),
+                    replacement_operator.to_string(),
+                ),
+                Edit::replacement(right.syntax().text_trimmed_range(), left_text),
+            ],
+            node_contains_comments(ast.syntax()),
+        ),
+    )))
+}
+
+fn needs_comparison_parentheses(expr: &AnyRExpression) -> anyhow::Result<bool> {
+    match expr {
+        AnyRExpression::RBinaryExpression(binary) => Ok(
+            OperatorPrecedence::try_from_binary_operator(binary.operator()?.kind())
+                .is_none_or(|precedence| precedence <= OperatorPrecedence::Relational)
+                // Even arithmetic can end with a prefix that absorbs a comparison:
+                // `1 == x + !y` must become `(x + !y) == 1`.
+                || needs_comparison_parentheses(&binary.right()?)?,
+        ),
+        AnyRExpression::RUnaryExpression(unary) => {
+            Ok(!matches!(
+                unary.operator()?.kind(),
+                RSyntaxKind::PLUS | RSyntaxKind::MINUS
+            ) || needs_comparison_parentheses(&unary.argument()?)?)
+        }
+        AnyRExpression::RIfStatement(_)
+        | AnyRExpression::RFunctionDefinition(_)
+        | AnyRExpression::RForStatement(_)
+        | AnyRExpression::RWhileStatement(_)
+        | AnyRExpression::RRepeatStatement(_) => Ok(true),
+        _ => Ok(false),
+    }
+}
+
+pub fn yoda_condition_call(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic>> {
     if !matches!(
         fn_name,
         "expect_equal" | "expect_identical" | "expect_setequal"
@@ -81,7 +166,7 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
     if is_literal(&expected_value)? {
         return Ok(Some(Diagnostic::new(
             ViolationData::new(
-                Rule::TestthatYodaTest,
+                Rule::YodaCondition,
                 "Comparing two literals does not test an actual result.".to_string(),
                 Some("Compare an actual result with the expected literal instead.".to_string()),
             ),
@@ -121,7 +206,7 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
 
     Ok(Some(Diagnostic::new(
         ViolationData::new(
-            Rule::TestthatYodaTest,
+            Rule::YodaCondition,
             "The actual result should be supplied as `object`, and the expected literal as `expected`."
                 .to_string(),
             Some(suggestion),

@@ -716,6 +716,14 @@ declare_rules! {
         min_r_version: None,
     },
 
+    YodaCondition => {
+        name: "yoda_condition",
+        categories: [Read],
+        default: Disabled,
+        fix: Unsafe,
+        min_r_version: None,
+    },
+
     //
     // ------------- COMMENTS -------------
     //
@@ -862,13 +870,6 @@ declare_rules! {
     },
     TestthatExpectType => {
         name: "expect_type",
-        categories: [Testthat],
-        default: Disabled,
-        fix: Safe,
-        min_r_version: None,
-    },
-    TestthatYodaTest => {
-        name: "yoda_test",
         categories: [Testthat],
         default: Disabled,
         fix: Safe,

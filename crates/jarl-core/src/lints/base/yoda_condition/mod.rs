@@ -1,4 +1,4 @@
-pub(crate) mod yoda_test;
+pub(crate) mod yoda_condition;
 
 #[cfg(test)]
 mod tests {
@@ -6,11 +6,11 @@ mod tests {
     use insta::assert_snapshot;
 
     fn snapshot_lint(code: &str) -> String {
-        format_diagnostics(code, "yoda_test", None)
+        format_diagnostics(code, "yoda_condition", None)
     }
 
     #[test]
-    fn test_no_lint_yoda_test() {
+    fn test_no_lint_yoda_condition() {
         for code in [
             "expect_equal(foo(x), 2)",
             "expect_identical(x, 'a')",
@@ -48,15 +48,19 @@ mod tests {
             "expect_equal(..., 1, x)",
             "expect_equal(1, x",
         ] {
-            expect_no_lint(code, "yoda_test", None);
+            expect_no_lint(code, "yoda_condition", None);
         }
         for pipe in ["|>", "%>%", "%!>%", "%T>%", "%<>%"] {
-            expect_no_lint(&format!("x {pipe} expect_equal(1, 1)"), "yoda_test", None);
+            expect_no_lint(
+                &format!("x {pipe} expect_equal(1, 1)"),
+                "yoda_condition",
+                None,
+            );
         }
     }
 
     #[test]
-    fn test_lint_yoda_test() {
+    fn test_lint_yoda_condition() {
         // One representative of each literal form; the functions share detection.
         for literal in [
             "1",
@@ -77,7 +81,7 @@ mod tests {
             "2 + 1i",
         ] {
             let code = format!("expect_equal({literal}, foo(x))");
-            let diagnostics = check_code(&code, "yoda_test", None);
+            let diagnostics = check_code(&code, "yoda_condition", None);
             assert_eq!(diagnostics.len(), 1, "{code}");
             assert_eq!(
                 diagnostics[0].message.suggestion.as_deref(),
@@ -109,7 +113,7 @@ mod tests {
 
         assert_snapshot!(
             "fix_output",
-            get_fixed_text(
+            get_unsafe_fixed_text(
                 vec![
                     "expect_equal(42, calculate_total(items))",
                     "testthat::expect_identical('ready', get_status(job))",
@@ -125,14 +129,13 @@ mod tests {
                     "expect_equal(2, x) |> identity()",
                     "expect_equal(2, expect_identical('a', x))",
                 ],
-                "yoda_test",
-                None
+                "yoda_condition"
             )
         );
 
         assert_snapshot!(
             "no_fix_output",
-            get_fixed_text(
+            get_unsafe_fixed_text(
                 vec![
                     // Two literals, named arguments, and extra arguments have no fix.
                     "expect_equal(1, 1)",
@@ -143,8 +146,7 @@ mod tests {
                     "expect_equal(2, # expected\nx)",
                     "expect_equal(2, foo( # actual\nx))",
                 ],
-                "yoda_test",
-                None
+                "yoda_condition"
             )
         );
     }

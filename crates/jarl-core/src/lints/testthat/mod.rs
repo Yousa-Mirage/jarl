@@ -8,4 +8,3 @@ pub(crate) mod expect_s3_class;
 pub(crate) mod expect_s4_class;
 pub(crate) mod expect_true_false;
 pub(crate) mod expect_type;
-pub(crate) mod yoda_test;
