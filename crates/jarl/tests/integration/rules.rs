@@ -1,6 +1,51 @@
 use crate::helpers::{CliTest, CommandExt};
 
 #[test]
+fn test_yoda_condition_without_testthat_attached() -> anyhow::Result<()> {
+    let case = CliTest::with_file(
+        "script.R",
+        "1 == total\nexpect_equal(2, total)\ntestthat::expect_identical(3L, total)\n",
+    )?;
+    let output = case
+        .command()
+        .args([
+            "check",
+            ".",
+            "--select",
+            "yoda_condition",
+            "--output-format",
+            "json",
+        ])
+        .run();
+    assert_eq!(output.status.code(), Some(1), "{output}");
+    let result: serde_json::Value = serde_json::from_str(&output.stdout)?;
+    let diagnostics = result["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 2);
+    assert_eq!(diagnostics[0]["message"]["name"], "yoda_condition");
+    assert_eq!(diagnostics[0]["location"]["row"], 1);
+    assert_eq!(diagnostics[1]["location"]["row"], 3);
+
+    let output = case
+        .command()
+        .args([
+            "check",
+            ".",
+            "--select",
+            "yoda_condition",
+            "--fix",
+            "--unsafe-fixes",
+            "--allow-no-vcs",
+        ])
+        .run();
+    assert!(output.status.success(), "{output}");
+    assert_eq!(
+        case.read_file("script.R")?,
+        "total == 1\nexpect_equal(2, total)\ntestthat::expect_identical(total, 3L)\n"
+    );
+    Ok(())
+}
+
+#[test]
 fn test_one_non_existing_selected_rule() -> anyhow::Result<()> {
     let case = CliTest::with_file("test.R", "any(is.na(x))")?;
     insta::assert_snapshot!(

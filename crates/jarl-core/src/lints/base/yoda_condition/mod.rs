@@ -12,6 +12,18 @@ mod tests {
     #[test]
     fn test_no_lint_yoda_condition() {
         for code in [
+            "x == 1",
+            "x != 'a'",
+            "x < 2",
+            "x <= 2",
+            "x > 2",
+            "x >= 2",
+            "x == y",
+            "1 + x == y",
+            "NULL == x",
+            "T == x",
+            "1 %in% x",
+            "1 + x",
             "expect_equal(foo(x), 2)",
             "expect_identical(x, 'a')",
             "expect_setequal(x, 1L)",
@@ -61,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_lint_yoda_condition() {
-        // One representative of each literal form; the functions share detection.
+        // Comparisons and expectations share literal detection.
         for literal in [
             "1",
             "1L",
@@ -80,20 +92,41 @@ mod tests {
             "(1) + 1",
             "2 + 1i",
         ] {
-            let code = format!("expect_equal({literal}, foo(x))");
-            let diagnostics = check_code(&code, "yoda_condition", None);
-            assert_eq!(diagnostics.len(), 1, "{code}");
-            assert_eq!(
-                diagnostics[0].message.suggestion.as_deref(),
-                Some(format!("Use `expect_equal(foo(x), {literal})` instead.").as_str()),
-                "{code}"
-            );
+            for (code, replacement) in [
+                (
+                    format!("expect_equal({literal}, foo(x))"),
+                    format!("expect_equal(foo(x), {literal})"),
+                ),
+                (
+                    format!("{literal} == foo(x)"),
+                    format!("foo(x) == {literal}"),
+                ),
+            ] {
+                let diagnostics = check_code(&code, "yoda_condition", None);
+                assert_eq!(diagnostics.len(), 1, "{code}");
+                assert_eq!(
+                    diagnostics[0].message.suggestion.as_deref(),
+                    Some(format!("Use `{replacement}` instead.").as_str()),
+                    "{code}"
+                );
+                assert!(diagnostics[0].has_unsafe_fix(), "{code}");
+            }
         }
+
+        // Ordinary fixes must leave comparisons and expectations unchanged.
+        let code = "1 == total\nexpect_equal(42, total)";
+        assert_eq!(
+            get_fixed_text(vec![code], "yoda_condition", None),
+            format!("OLD:\n====\n{code}\nNEW:\n====\n{code}")
+        );
 
         assert_snapshot!(
             "diagnostics",
             snapshot_lint(
                 &[
+                    "1 == total",
+                    "if (10L < quantity) discount <- 0.1",
+                    "1 == 2",
                     "expect_equal(42, calculate_total(items))",
                     "testthat::expect_identical(\"ready\", get_status(job))",
                     "expect_setequal(3L, unique(values))",
@@ -115,6 +148,13 @@ mod tests {
             "fix_output",
             get_unsafe_fixed_text(
                 vec![
+                    "1 == total\n'a' != name\n10L < quantity\n2 <= length(x)\n3 > value\n4 >= value",
+                    "if (1 == x) foo()\nwhile (0 < remaining) remaining <- remaining - 1",
+                    "dplyr::filter(data, 'ready' == status)",
+                    "(1) + 1 == x + 1\n1 == -x\n1 == x * 2\n1 == (x > y)",
+                    "1 == !x\n1 == x + !y\n1 == -!x\n1 == if (flag) x else y\n1 == function(x) x",
+                    "# leading comment\n'你好'  !=\n  get_name(x) # trailing comment",
+                    "expect_equal(TRUE, 1 == total)",
                     "expect_equal(42, calculate_total(items))",
                     "testthat::expect_identical('ready', get_status(job))",
                     "testthat:::expect_setequal(1L, x)",
@@ -137,6 +177,8 @@ mod tests {
             "no_fix_output",
             get_unsafe_fixed_text(
                 vec![
+                    "1 == 2\n1 < 2",
+                    "1 == # actual\nx",
                     // Two literals, named arguments, and extra arguments have no fix.
                     "expect_equal(1, 1)",
                     "expect_identical(1, 2)",
