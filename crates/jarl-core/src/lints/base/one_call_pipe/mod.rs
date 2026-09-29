@@ -13,7 +13,9 @@ mod tests {
     fn test_lint_one_call_pipe() {
         assert_snapshot!(
             "lint_one_call_pipe",
-            snapshot_lint("x |> sum()\n1:10 %>% sum()\n(x + 1) |> abs()\nx %T>% sum()")
+            snapshot_lint(
+                "x |> sum()\n1:10 %>% sum()\n(x + 1) |> abs()\nx %T>% sum()\nx %>% { sum(.) }\nx %>% .()\nx |> _()"
+            )
         );
     }
 
@@ -30,6 +32,9 @@ mod tests {
                     "x %T>% sum()",
                     "x %<>% sum()",
                     "x %!>% sum()",
+                    "x %>% { sum(.) }",
+                    "x %>% .()",
+                    "x |> _()",
                 ],
                 "one_call_pipe",
                 None,
@@ -70,6 +75,8 @@ mod tests {
             "df |> dplyr::select(x)",
             "df |> mutate(y = x)",
             "df |> f(y = g())",
+            "x %>% f(.)",
+            "x |> f(_)",
         ] {
             expect_no_lint(code, "one_call_pipe", None);
         }
