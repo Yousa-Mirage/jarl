@@ -46,7 +46,7 @@ const FORMALS_EXPECT: Formals = &["object", "expected"];
 /// expect_equal(length(x), 2)
 /// ```
 /// <!-- docs: end -->
-
+/// Checks binary comparisons whose left operand is a literal.
 pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     let operator = ast.operator()?;
     let replacement_operator = match operator.kind() {
@@ -65,6 +65,8 @@ pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnost
     }
     let right = ast.right()?;
     let range = ast.syntax().text_trimmed_range();
+
+    // Comparisons of two literals.
     if is_literal(&right)? {
         return Ok(Some(Diagnostic::new(
             ViolationData::new(
@@ -132,7 +134,8 @@ fn needs_comparison_parentheses(expr: &AnyRExpression) -> anyhow::Result<bool> {
     }
 }
 
-pub fn yoda_condition_call(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic>> {
+/// Checks testthat expectations whose `object` argument is a literal.
+pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic>> {
     if !matches!(
         fn_name,
         "expect_equal" | "expect_identical" | "expect_setequal"
