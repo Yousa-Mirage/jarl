@@ -6,38 +6,65 @@ fn test_yoda_condition_without_testthat_attached() -> anyhow::Result<()> {
         "script.R",
         "1 == total\nexpect_equal(2, total)\ntestthat::expect_identical(3L, total)\n",
     )?;
-    let output = case
-        .command()
-        .args([
-            "check",
-            ".",
-            "--select",
-            "yoda_condition",
-            "--output-format",
-            "json",
-        ])
-        .run();
-    assert_eq!(output.status.code(), Some(1), "{output}");
-    let result: serde_json::Value = serde_json::from_str(&output.stdout)?;
-    let diagnostics = result["diagnostics"].as_array().unwrap();
-    assert_eq!(diagnostics.len(), 2);
-    assert_eq!(diagnostics[0]["message"]["name"], "yoda_condition");
-    assert_eq!(diagnostics[0]["location"]["row"], 1);
-    assert_eq!(diagnostics[1]["location"]["row"], 3);
+    insta::assert_snapshot!(
+        &mut case.command()
+            .args(["check", ".", "--select", "yoda_condition"])
+            .run()
+            .normalize_os_executable_name(),
+        @"
 
-    let output = case
-        .command()
-        .args([
-            "check",
-            ".",
-            "--select",
-            "yoda_condition",
-            "--fix",
-            "--unsafe-fixes",
-            "--allow-no-vcs",
-        ])
-        .run();
-    assert!(output.status.success(), "{output}");
+    success: false
+    exit_code: 1
+    ----- stdout -----
+    warning: yoda_condition
+     --> script.R:1:1
+      |
+    1 | 1 == total
+      | ---------- The actual result should come before the expected literal.
+      |
+      = help: Use `total == 1` instead.
+
+    warning: yoda_condition
+     --> script.R:3:1
+      |
+    3 | testthat::expect_identical(3L, total)
+      | ------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+      |
+      = help: Use `testthat::expect_identical(total, 3L)` instead.
+
+
+    ── Summary ──────────────────────────────────────
+    Found 2 errors.
+    2 fixes are available with the `--fix --unsafe-fixes` option.
+
+    ----- stderr -----
+    "
+    );
+
+    insta::assert_snapshot!(
+        &mut case.command()
+            .args([
+                "check",
+                ".",
+                "--select",
+                "yoda_condition",
+                "--fix",
+                "--unsafe-fixes",
+                "--allow-no-vcs",
+            ])
+            .run()
+            .normalize_os_executable_name(),
+        @"
+
+    success: true
+    exit_code: 0
+    ----- stdout -----
+    ── Summary ──────────────────────────────────────
+    All checks passed!
+
+    ----- stderr -----
+    "
+    );
     assert_eq!(
         case.read_file("script.R")?,
         "total == 1\nexpect_equal(2, total)\ntestthat::expect_identical(total, 3L)\n"

@@ -119,7 +119,10 @@ mod tests {
             get_fixed_text(vec![code], "yoda_condition", None),
             format!("OLD:\n====\n{code}\nNEW:\n====\n{code}")
         );
+    }
 
+    #[test]
+    fn test_yoda_condition_snapshots() {
         assert_snapshot!(
             "diagnostics",
             snapshot_lint(
