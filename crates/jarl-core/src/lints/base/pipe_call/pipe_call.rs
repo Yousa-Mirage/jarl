@@ -3,6 +3,31 @@ use crate::rule_set::Rule;
 use air_r_syntax::*;
 use biome_rowan::AstNode;
 
+/// <!-- docs: start -->
+/// Version added: 0.7.0
+///
+/// ## What it does
+///
+/// Reports bare function names on the right-hand side of magrittr pipes.
+///
+/// ## Why is this bad?
+///
+/// An explicit function call makes each step of a pipe easier to read.
+///
+/// This rule is disabled by default.
+///
+/// ## Example
+///
+/// ```r
+/// x %>% sum
+/// ```
+///
+/// Use instead:
+///
+/// ```r
+/// x %>% sum()
+/// ```
+/// <!-- docs: end -->
 pub fn pipe_call(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnostic>> {
     let RBinaryExpressionFields { left: _, operator, right } = ast.as_fields();
     let operator = operator?;
