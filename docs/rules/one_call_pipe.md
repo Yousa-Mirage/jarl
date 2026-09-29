@@ -7,7 +7,7 @@
 
 Reports pipes whose expression contains only one function call. This applies
 to both the native pipe (`|>`) and magrittr pipes (`%>%`, `%!>%`, `%T>%`,
-and `%<>%`).
+and `%<>%`). This rule is disabled by default.
 
 Calls anywhere in the piped expression count, including calls on the left
 side. An expression on the left side without a call, such as `x + 1`, does

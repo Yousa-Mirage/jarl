@@ -550,7 +550,7 @@ declare_rules! {
     OneCallPipe => {
         name: "one_call_pipe",
         categories: [Read],
-        default: Enabled,
+        default: Disabled,
         fix: Safe,
         min_r_version: None,
     },
