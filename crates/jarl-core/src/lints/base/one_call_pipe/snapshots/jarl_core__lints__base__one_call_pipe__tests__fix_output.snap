@@ -1,6 +1,6 @@
 ---
 source: crates/jarl-core/src/lints/base/one_call_pipe/mod.rs
-expression: "get_fixed_text(vec![\"x |> sum()\", \"1:10 %>% sum()\", \"(x + 1) |> abs()\",\n\"x |> f(y)\", \"x |> f(y, z)\", \"x |> # preserve comment\\n  f()\", \"x %T>% sum()\",\n\"x %<>% sum()\", \"x %!>% sum()\",], \"one_call_pipe\", None,)"
+expression: "get_fixed_text(vec![\"x |> sum()\", \"1:10 %>% sum()\", \"(x + 1) |> abs()\",\n\"x |> # preserve comment\\n  f()\", \"x %T>% sum()\", \"x %<>% sum()\",\n\"x %!>% sum()\",], \"one_call_pipe\", None,)"
 ---
 OLD:
 ====
@@ -22,20 +22,6 @@ OLD:
 NEW:
 ====
 abs((x + 1))
-
-OLD:
-====
-x |> f(y)
-NEW:
-====
-x |> f(y)
-
-OLD:
-====
-x |> f(y, z)
-NEW:
-====
-x |> f(y, z)
 
 OLD:
 ====

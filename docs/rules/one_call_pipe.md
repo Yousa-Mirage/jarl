@@ -12,7 +12,8 @@ and `%<>%`). This rule is disabled by default.
 Calls anywhere in the piped expression count, including calls on the left
 side. An expression on the left side without a call, such as `x + 1`, does
 not add to the count; an expression containing a call, such as `f(x) + 1`,
-does.
+does. Pipes whose right-hand call already has arguments, such as
+`df |> select(x)`, are not reported.
 
 ## Why is this bad?
 

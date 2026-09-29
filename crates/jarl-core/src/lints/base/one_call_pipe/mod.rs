@@ -13,7 +13,7 @@ mod tests {
     fn test_lint_one_call_pipe() {
         assert_snapshot!(
             "lint_one_call_pipe",
-            snapshot_lint("x |> sum()\n1:10 %>% sum()\n(x + 1) |> abs()\nx |> f(y)\nx %T>% sum()")
+            snapshot_lint("x |> sum()\n1:10 %>% sum()\n(x + 1) |> abs()\nx %T>% sum()")
         );
     }
 
@@ -26,8 +26,6 @@ mod tests {
                     "x |> sum()",
                     "1:10 %>% sum()",
                     "(x + 1) |> abs()",
-                    "x |> f(y)",
-                    "x |> f(y, z)",
                     "x |> # preserve comment\n  f()",
                     "x %T>% sum()",
                     "x %<>% sum()",
@@ -54,11 +52,24 @@ mod tests {
             "(f(x)) |> g()",
             "(x + f(y) + g(z)) |> h()",
             "(x + 1) |> f(g())",
-            "x |> f(y = g())",
             "(x |> f()) |> g()",
             "x %>% sum() %>% mean()",
             "x |> sum() |> mean()",
             "x %>% sum() %>% mean() %>% sd()",
+        ] {
+            expect_no_lint(code, "one_call_pipe", None);
+        }
+    }
+
+    #[test]
+    fn test_no_lint_rhs_call_with_arguments() {
+        for code in [
+            "xgb_spec |> fit_xy(mtcar_mat, mtcars$mpg)",
+            "df |> select(x)",
+            "df %>% select(x)",
+            "df |> dplyr::select(x)",
+            "df |> mutate(y = x)",
+            "df |> f(y = g())",
         ] {
             expect_no_lint(code, "one_call_pipe", None);
         }

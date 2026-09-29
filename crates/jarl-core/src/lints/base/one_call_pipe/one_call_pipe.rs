@@ -16,7 +16,8 @@ use biome_rowan::{AstNode, AstSeparatedList};
 /// Calls anywhere in the piped expression count, including calls on the left
 /// side. An expression on the left side without a call, such as `x + 1`, does
 /// not add to the count; an expression containing a call, such as `f(x) + 1`,
-/// does.
+/// does. Pipes whose right-hand call already has arguments, such as
+/// `df |> select(x)`, are not reported.
 ///
 /// ## Why is this bad?
 ///
@@ -56,6 +57,14 @@ pub fn one_call_pipe(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnosti
     if !is_pipe {
         return Ok(None);
     }
+    let right = right?;
+    if let AnyRExpression::RCall(call) = &right {
+        // Calls with explicit RHS arguments are idiomatic in pipes, e.g.
+        // `df |> select(x)`, so leave them alone regardless of call count.
+        if !call.arguments()?.items().is_empty() {
+            return Ok(None);
+        }
+    }
 
     // Only inspect the outermost pipe in a chain. Its subtree includes all
     // calls from earlier pipe stages, avoiding a false positive on an
@@ -88,14 +97,14 @@ pub fn one_call_pipe(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnosti
     // variants have extra semantics that a plain call would lose.
     let fixable_pipe = operator.kind() == RSyntaxKind::PIPE
         || (operator.kind() == RSyntaxKind::SPECIAL && operator.text_trimmed() == "%>%");
-    let replacement = pipe_replacement(ast, left?, right?, fixable_pipe)?;
+    let replacement = pipe_replacement(ast, left?, right, fixable_pipe)?;
 
     let fix = match &replacement {
-        Some((replacement, true)) => Fix::new(range, replacement.clone(), false),
-        _ => Fix::empty(),
+        Some(replacement) => Fix::new(range, replacement.clone(), false),
+        None => Fix::empty(),
     };
     let suggestion = Some(match replacement {
-        Some((replacement, _)) => format!("Replace with `{replacement}`."),
+        Some(replacement) => format!("Replace with `{replacement}`."),
         None => "Use a regular function call instead.".to_string(),
     });
     Ok(Some(Diagnostic::new(
@@ -114,7 +123,7 @@ fn pipe_replacement(
     left: AnyRExpression,
     right: AnyRExpression,
     fixable_pipe: bool,
-) -> anyhow::Result<Option<(String, bool)>> {
+) -> anyhow::Result<Option<String>> {
     // Don't suggest a fix that either changes special-pipe semantics or
     // discards comments from the expression.
     if !fixable_pipe || node_contains_comments(ast.syntax()) {
@@ -139,28 +148,7 @@ fn pipe_replacement(
         return Ok(None);
     }
 
-    let function = call.function()?;
-    let function_text = function.syntax().text_trimmed().to_string();
-    let call_text = call.syntax().text_trimmed().to_string();
-    // Preserve the RHS arguments verbatim while preparing a concrete suggestion.
-    let Some(args_text) = call_text.strip_prefix(&function_text).and_then(|suffix| {
-        let open = suffix.find('(')?;
-        let close = suffix.rfind(')')?;
-        (open < close).then(|| suffix[open + 1..close].trim().to_string())
-    }) else {
-        return Ok(None);
-    };
-
-    let replacement = if args_text.is_empty() {
-        format!("{function_text}({})", left.syntax().text_trimmed())
-    } else {
-        format!(
-            "{function_text}({}, {args_text})",
-            left.syntax().text_trimmed()
-        )
-    };
-    // A suggestion can include existing arguments, but auto-fix only the simple
-    // zero-argument RHS where the rewrite is straightforward.
-    let can_fix = call.arguments()?.items().is_empty();
-    Ok(Some((replacement, can_fix)))
+    let function_text = call.function()?.syntax().text_trimmed();
+    let replacement = format!("{function_text}({})", left.syntax().text_trimmed());
+    Ok(Some(replacement))
 }
