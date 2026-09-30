@@ -1,0 +1,77 @@
+---
+source: crates/jarl-core/src/lints/base/function_argument/mod.rs
+expression: "format_diagnostics(&code, \"function_argument\", None)"
+---
+warning: function_argument
+ --> <test>:1:20
+  |
+1 | function(x, y = 1, z, w = 2) {}
+  |                    - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+ --> <test>:2:20
+  |
+2 | function(x = NULL, y, z) {}
+  |                    - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+ --> <test>:2:23
+  |
+2 | function(x = NULL, y, z) {}
+  |                       - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+ --> <test>:3:22
+  |
+3 | function(x = 1, ..., y, z = 2) {}
+  |                      - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+ --> <test>:4:10
+  |
+4 | \(x = 1, y) {}
+  |          - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+ --> <test>:8:3
+  |
+8 |   y
+  |   - Arguments without defaults should come before arguments with defaults.
+  |
+warning: function_argument
+  --> <test>:10:17
+   |
+10 | function(x = 1, `not syntactic`, 数据) {}
+   |                 --------------- Arguments without defaults should come before arguments with defaults.
+   |
+warning: function_argument
+  --> <test>:10:34
+   |
+10 | function(x = 1, `not syntactic`, 数据) {}
+   |                                  ---- Arguments without defaults should come before arguments with defaults.
+   |
+warning: function_argument
+  --> <test>:11:17
+   |
+11 | function(x = 1, y) { function(a = 1, b) {} }
+   |                 - Arguments without defaults should come before arguments with defaults.
+   |
+warning: function_argument
+  --> <test>:11:38
+   |
+11 | function(x = 1, y) { function(a = 1, b) {} }
+   |                                      - Arguments without defaults should come before arguments with defaults.
+   |
+warning: function_argument
+  --> <test>:12:30
+   |
+12 | function(x = function(a = 1, b) {}, y = 2) {}
+   |                              - Arguments without defaults should come before arguments with defaults.
+   |
+warning: function_argument
+  --> <test>:13:17
+   |
+13 | function(x = 1, y) if (missing(y)) 2 else y
+   |                 - Arguments without defaults should come before arguments with defaults.
+   |
+Found 12 errors.
