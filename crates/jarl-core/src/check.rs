@@ -967,6 +967,32 @@ mod tests {
     const COMPLEX_FILTER: &str = "x |> filter(a > 1 | is.na(a))\n";
 
     #[test]
+    fn test_todo_comment_roxygen_examples() {
+        // Check markers in the original comments, without rechecking extracted examples.
+        assert_snapshot!(
+            lint_in_package(
+                &[
+                    ("DESCRIPTION", "Package: fixture\nVersion: 0.0.1\n"),
+                    (
+                        "R/example.R",
+                        "\
+#' TODO: finish docs
+#' @examples
+#' # jarl-ignore unused_object: illustrative code
+#' x <- 1 # TODO: example code
+#' # FIXME: example comment
+f <- function() NULL
+",
+                    ),
+                ],
+                "R/example.R",
+                "todo_comment",
+            ),
+            @"todo_comment"
+        );
+    }
+
+    #[test]
     fn test_description_imports_does_not_attach() {
         // `Imports: dplyr` alone doesn't put dplyr on the search path, so a
         // bare `filter()` in `R/` is `stats::filter()` and must not lint.
