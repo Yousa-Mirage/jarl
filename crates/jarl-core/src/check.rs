@@ -619,7 +619,9 @@ fn get_checks_roxygen(
         let suppression = SuppressionManager::from_node(&syntax, &chunk.code);
         let has_suppressions = suppression.has_any_suppressions;
         let mut checker = Checker::new(suppression, config.rule_options.clone());
-        checker.rule_set = effective_rules_for_file(config, file, minimum_r_version);
+        // Check TODO markers only in the original roxygen comments.
+        checker.rule_set = effective_rules_for_file(config, file, minimum_r_version)
+            .filter(|rule| *rule != crate::rule_set::Rule::TodoComment);
         checker.minimum_r_version = minimum_r_version;
         checker.file_path = file.to_path_buf();
         checker.source_index_cache = context.source_cache.clone();

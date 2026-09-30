@@ -1,0 +1,113 @@
+---
+source: crates/jarl-core/src/lints/base/todo_comment/mod.rs
+expression: "format_diagnostics(&code, \"todo_comment\", None)"
+---
+warning: todo_comment
+ --> <test>:1:1
+  |
+1 | # TODO
+  | ------ Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:2:1
+  |
+2 | # FIXME
+  | ------- Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:3:1
+  |
+3 | # tOdO later
+  | ------------ Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:4:1
+  |
+4 | # fIxMe    later
+  | ---------------- Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:5:1
+  |
+5 | #TODO123
+  | -------- Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:6:1
+  |
+6 | # TODO123abc
+  | ------------ Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:7:1
+  |
+7 | # FIXME９
+  | --------- Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:8:1
+  |
+8 | # TODO: later
+  | ------------- Remove TODO comments.
+  |
+warning: todo_comment
+ --> <test>:9:1
+  |
+9 | # FIXME(issue): later
+  | --------------------- Remove TODO comments.
+  |
+warning: todo_comment
+  --> <test>:10:1
+   |
+10 | # TODO_task
+   | ----------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:11:1
+   |
+11 | # FIXME.md
+   | ---------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:12:1
+   |
+12 | # TODO🛠
+   | ------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:13:1
+   |
+13 | ### TODO: later
+   | --------------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:14:1
+   |
+14 | #    TODO later
+   | --------------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:15:1
+   |
+15 | #' FIXME: document this
+   | ----------------------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:16:8
+   |
+16 | x <- 1 # TODO: later
+   |        ------------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:18:3
+   |
+18 |   # FIXME: later
+   |   -------------- Remove TODO comments.
+   |
+warning: todo_comment
+  --> <test>:21:1
+   |
+21 | # TODO and FIXME: one diagnostic
+   | -------------------------------- Remove TODO comments.
+   |
+Found 18 errors.
