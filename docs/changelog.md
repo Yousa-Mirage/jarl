@@ -24,7 +24,7 @@
 * New rules:
 
   * `library_call` (#701)
-  * `todo_comment` (@Yousa-Mirage).
+  * `todo_comment` (#739, @Yousa-Mirage).
   * `undesirable_operator` (#657, @christopherkenny)
 
 * The config file can be named `.jarl.toml` as well as `jarl.toml`. Both names
