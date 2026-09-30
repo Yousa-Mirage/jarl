@@ -16,9 +16,9 @@ pub struct TodoComment;
 ///
 /// A marker is reported when followed by the end of the comment, whitespace,
 /// a symbol, or a digit. It is ignored when immediately followed by a Unicode
-/// letter: `# TODO123` and `# TODO: fix this` are reported, while `# TODOLIST`
-/// and `# TODO中文` are ignored. Strings and markers in the middle of comment
-/// text are ignored.
+/// letter. For example, `# TODO123` and `# TODO: fix this` are reported, while
+/// `# TODOLIST` and `# TODO中文` are ignored. Strings and markers in the middle
+/// of comment text are ignored.
 ///
 /// ## Why is this bad?
 ///
