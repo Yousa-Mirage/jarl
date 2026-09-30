@@ -5,6 +5,10 @@ mod tests {
     use crate::utils_test::*;
     use insta::assert_snapshot;
 
+    fn snapshot_lint(code: &str) -> String {
+        format_diagnostics(code, "function_argument", None)
+    }
+
     #[test]
     fn test_no_lint_function_argument() {
         for code in [
@@ -27,19 +31,139 @@ mod tests {
 
     #[test]
     fn test_lint_function_argument() {
-        let code = [
-            "function(x, y = 1, z, w = 2) {}",
-            "function(x = NULL, y, z) {}",
-            "function(x = 1, ..., y, z = 2) {}",
-            r"\(x = 1, y) {}",
-            "function(\n  x # comment\n  = calculate(),\n  y\n) {}",
-            "function(x = 1, `not syntactic`, 数据) {}",
-            "function(x = 1, y) { function(a = 1, b) {} }",
-            "function(x = function(a = 1, b) {}, y = 2) {}",
-            "function(x = 1, y) if (missing(y)) 2 else y",
-        ]
-        .join("\n");
+        assert_snapshot!(
+            snapshot_lint("function(x, y = 1, z, w = 2) {}"),
+            @"
+        warning: function_argument
+         --> <test>:1:20
+          |
+        1 | function(x, y = 1, z, w = 2) {}
+          |                    - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
 
-        assert_snapshot!(format_diagnostics(&code, "function_argument", None));
+        assert_snapshot!(
+            snapshot_lint("function(x = NULL, y, z) {}"),
+            @"
+        warning: function_argument
+         --> <test>:1:20
+          |
+        1 | function(x = NULL, y, z) {}
+          |                    - Arguments without defaults should come before arguments with defaults.
+          |
+        warning: function_argument
+         --> <test>:1:23
+          |
+        1 | function(x = NULL, y, z) {}
+          |                       - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 2 errors.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(x = 1, ..., y, z = 2) {}"),
+            @"
+        warning: function_argument
+         --> <test>:1:22
+          |
+        1 | function(x = 1, ..., y, z = 2) {}
+          |                      - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint(r"\(x = 1, y) {}"),
+            @r"
+        warning: function_argument
+         --> <test>:1:10
+          |
+        1 | \(x = 1, y) {}
+          |          - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(\n  x # comment\n  = calculate(),\n  y\n) {}"),
+            @"
+        warning: function_argument
+         --> <test>:4:3
+          |
+        4 |   y
+          |   - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(x = 1, `not syntactic`, 数据) {}"),
+            @"
+        warning: function_argument
+         --> <test>:1:17
+          |
+        1 | function(x = 1, `not syntactic`, 数据) {}
+          |                 --------------- Arguments without defaults should come before arguments with defaults.
+          |
+        warning: function_argument
+         --> <test>:1:34
+          |
+        1 | function(x = 1, `not syntactic`, 数据) {}
+          |                                  ---- Arguments without defaults should come before arguments with defaults.
+          |
+        Found 2 errors.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(x = 1, y) { function(a = 1, b) {} }"),
+            @"
+        warning: function_argument
+         --> <test>:1:17
+          |
+        1 | function(x = 1, y) { function(a = 1, b) {} }
+          |                 - Arguments without defaults should come before arguments with defaults.
+          |
+        warning: function_argument
+         --> <test>:1:38
+          |
+        1 | function(x = 1, y) { function(a = 1, b) {} }
+          |                                      - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 2 errors.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(x = function(a = 1, b) {}, y = 2) {}"),
+            @"
+        warning: function_argument
+         --> <test>:1:30
+          |
+        1 | function(x = function(a = 1, b) {}, y = 2) {}
+          |                              - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
+
+        assert_snapshot!(
+            snapshot_lint("function(x = 1, y) if (missing(y)) 2 else y"),
+            @"
+        warning: function_argument
+         --> <test>:1:17
+          |
+        1 | function(x = 1, y) if (missing(y)) 2 else y
+          |                 - Arguments without defaults should come before arguments with defaults.
+          |
+        Found 1 error.
+        "
+        );
     }
 }
