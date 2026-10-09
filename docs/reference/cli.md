@@ -82,7 +82,7 @@ Apply fixes to resolve lint violations, but don't report on leftover violations.
 
 **`--allow-dirty`**
 
-Apply fixes even if the Git branch is not clean, meaning that there are uncommitted files.
+Apply fixes even if the working directory is not clean, meaning that there are uncommitted files.
 
 ---
 

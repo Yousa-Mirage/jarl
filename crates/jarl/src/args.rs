@@ -151,7 +151,7 @@ pub struct CheckCommand {
         long,
         default_value = "false",
         help_heading = "Fix options",
-        help = "Apply fixes even if the Git branch is not clean, meaning that there are uncommitted files."
+        help = "Apply fixes even if the working directory is not clean, meaning that there are uncommitted files."
     )]
     pub allow_dirty: bool,
     #[arg(

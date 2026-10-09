@@ -57,6 +57,11 @@ It can be hard to inspect the changes or to revert a large number of changes, so
 
 1. if the file isn't tracked by a Version Control System (VCS, such as Git), then fixes are not applied and you need to specify `--allow-no-vcs` to apply them;
 2. if the file is tracked by a VCS but the status isn't clean (meaning that some files aren't committed), then fixes are not applied and you need to specify `--allow-dirty` to apply them. This is to prevent cases where fixes would be mixed together with other unrelated changes and therefore hard to inspect.
+
+These safety checks support Git repositories and SVN working copies (SVN 1.9
+or later), provided the corresponding command-line client is installed. Git
+is preferred when both are detected. SVN support does not include filtering
+files using SVN ignore properties.
 :::
 
 Note that Jarl is not a code formatter, so automatic fixes may not match your expected code style.

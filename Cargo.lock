@@ -1058,6 +1058,7 @@ dependencies = [
  "tempfile",
  "tracing",
  "tracing-subscriber",
+ "url",
  "workspace",
 ]
 

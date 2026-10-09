@@ -21,6 +21,10 @@
 
 ### Changes
 
+* Recognize SVN working copies when applying autofixes, including checks for
+  uncommitted changes. The `--allow-no-vcs` and `--allow-dirty` options retain
+  their existing behavior. This does not add support for SVN ignore properties.
+
 * New rules:
 
   * `library_call` (#701)
