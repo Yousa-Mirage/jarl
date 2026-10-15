@@ -70,7 +70,7 @@ pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnost
     Ok(Some(Diagnostic::new(
         ViolationData::new(
             Rule::YodaCondition,
-            "The actual result should come before the expected literal.".to_string(),
+            "Putting the literal first in the comparison is less readable.".to_string(),
             Some("Put the actual result on the left and the literal on the right.".to_string()),
         ),
         ast.syntax().text_trimmed_range(),
@@ -181,7 +181,7 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
     Ok(Some(Diagnostic::new(
         ViolationData::new(
             Rule::YodaCondition,
-            "The actual result should be supplied as `object`, and the expected literal as `expected`."
+            "Using a literal in the `object` argument is less readable and gives worse error messages."
                 .to_string(),
             Some("Supply the actual result as `object` and the literal as `expected`.".to_string()),
         ),

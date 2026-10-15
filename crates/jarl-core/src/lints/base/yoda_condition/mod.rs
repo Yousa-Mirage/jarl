@@ -86,7 +86,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | 1 == total
-          | ---------- The actual result should come before the expected literal.
+          | ---------- Putting the literal first in the comparison is less readable.
           |
           = help: Put the actual result on the left and the literal on the right.
         Found 1 error.
@@ -99,7 +99,7 @@ mod tests {
          --> <test>:1:5
           |
         1 | if (10L < quantity) discount <- 0.1
-          |     -------------- The actual result should come before the expected literal.
+          |     -------------- Putting the literal first in the comparison is less readable.
           |
           = help: Put the actual result on the left and the literal on the right.
         Found 1 error.
@@ -112,7 +112,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | expect_equal(42, calculate_total(items))
-          | ---------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | ---------------------------------------- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -125,7 +125,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | testthat::expect_identical("ready", get_status(job))
-          | ---------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | ---------------------------------------------------- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -138,7 +138,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | expect_setequal(3L, unique(values))
-          | ----------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | ----------------------------------- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -151,7 +151,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | expect_equal(expected = total, object = 42)
-          | ------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | ------------------------------------------- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -164,7 +164,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | expect_equal(7.5, calculate_mean(values), tolerance = 0.1)
-          | ---------------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | ---------------------------------------------------------- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -178,7 +178,7 @@ mod tests {
           |
         1 | / expect_equal(2, # expected
         2 | | x)
-          | |__- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | |__- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -194,7 +194,7 @@ mod tests {
         3 | |     "你好",
         4 | |     foo(x)
         5 | |   )
-          | |___- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          | |___- Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -207,7 +207,7 @@ mod tests {
          --> <test>:1:10
           |
         1 | x |> foo(expect_equal(2, y))
-          |          ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |          ------------------ Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -221,7 +221,7 @@ mod tests {
          --> <test>:1:7
           |
         1 | x %>% expect_equal(2, .)
-          |       ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |       ------------------ Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
@@ -234,7 +234,7 @@ mod tests {
          --> <test>:1:8
           |
         1 | x %>% (expect_equal(2, .))
-          |        ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |        ------------------ Using a literal in the `object` argument is less readable and gives worse error messages.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.
