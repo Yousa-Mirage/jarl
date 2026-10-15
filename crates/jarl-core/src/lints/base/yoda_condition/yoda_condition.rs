@@ -30,14 +30,14 @@ const FORMALS_EXPECT: Formals = &["object", "expected"];
 /// ```r
 /// 1 == x
 /// 10 < length(x)
-/// expect_equal(2, length(x))
+/// expect_equal(2, x + y)
 /// ```
 ///
 /// Use instead:
 /// ```r
 /// x == 1
 /// length(x) > 10
-/// expect_equal(length(x), 2)
+/// expect_equal(x + y, 2)
 /// ```
 ///
 /// ## References
