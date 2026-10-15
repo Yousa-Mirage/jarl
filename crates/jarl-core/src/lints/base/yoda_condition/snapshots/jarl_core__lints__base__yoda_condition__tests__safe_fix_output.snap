@@ -1,0 +1,12 @@
+---
+source: crates/jarl-core/src/lints/base/yoda_condition/mod.rs
+expression: "get_fixed_text(vec![\"1 == total\\nexpect_equal(42, total)\"], \"yoda_condition\",\nNone)"
+---
+OLD:
+====
+1 == total
+expect_equal(42, total)
+NEW:
+====
+1 == total
+expect_equal(42, total)

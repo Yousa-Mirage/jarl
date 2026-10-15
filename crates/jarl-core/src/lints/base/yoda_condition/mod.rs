@@ -81,50 +81,55 @@ mod tests {
     #[test]
     fn test_lint_yoda_condition() {
         // Comparisons and expectations share literal detection.
-        for literal in [
-            "1",
-            "1L",
-            "1i",
-            "'a'",
-            "r\"(a\\b)\"",
-            "TRUE",
-            "FALSE",
-            "NA",
-            "NA_integer_",
-            "Inf",
-            "NaN",
-            "-1",
-            "((1))",
-            "1 + 1",
-            "(1) + 1",
-            "2 + 1i",
-        ] {
-            for (code, replacement) in [
-                (
-                    format!("expect_equal({literal}, foo(x))"),
-                    format!("expect_equal(foo(x), {literal})"),
-                ),
-                (
-                    format!("{literal} == foo(x)"),
-                    format!("foo(x) == {literal}"),
-                ),
-            ] {
-                let diagnostics = check_code(&code, "yoda_condition", None);
-                assert_eq!(diagnostics.len(), 1, "{code}");
-                assert_eq!(
-                    diagnostics[0].message.suggestion.as_deref(),
-                    Some(format!("Use `{replacement}` instead.").as_str()),
-                    "{code}"
-                );
-                assert!(diagnostics[0].has_unsafe_fix(), "{code}");
-            }
-        }
+        assert_snapshot!(
+            "literal_fix_output",
+            get_unsafe_fixed_text(
+                vec![
+                    "expect_equal(1, foo(x))",
+                    "1 == foo(x)",
+                    "expect_equal(1L, foo(x))",
+                    "1L == foo(x)",
+                    "expect_equal(1i, foo(x))",
+                    "1i == foo(x)",
+                    "expect_equal('a', foo(x))",
+                    "'a' == foo(x)",
+                    "expect_equal(r\"(a\\b)\", foo(x))",
+                    "r\"(a\\b)\" == foo(x)",
+                    "expect_equal(TRUE, foo(x))",
+                    "TRUE == foo(x)",
+                    "expect_equal(FALSE, foo(x))",
+                    "FALSE == foo(x)",
+                    "expect_equal(NA, foo(x))",
+                    "NA == foo(x)",
+                    "expect_equal(NA_integer_, foo(x))",
+                    "NA_integer_ == foo(x)",
+                    "expect_equal(Inf, foo(x))",
+                    "Inf == foo(x)",
+                    "expect_equal(NaN, foo(x))",
+                    "NaN == foo(x)",
+                    "expect_equal(-1, foo(x))",
+                    "-1 == foo(x)",
+                    "expect_equal(((1)), foo(x))",
+                    "((1)) == foo(x)",
+                    "expect_equal(1 + 1, foo(x))",
+                    "1 + 1 == foo(x)",
+                    "expect_equal((1) + 1, foo(x))",
+                    "(1) + 1 == foo(x)",
+                    "expect_equal(2 + 1i, foo(x))",
+                    "2 + 1i == foo(x)",
+                ],
+                "yoda_condition"
+            )
+        );
 
         // Ordinary fixes must leave comparisons and expectations unchanged.
-        let code = "1 == total\nexpect_equal(42, total)";
-        assert_eq!(
-            get_fixed_text(vec![code], "yoda_condition", None),
-            format!("OLD:\n====\n{code}\nNEW:\n====\n{code}")
+        assert_snapshot!(
+            "safe_fix_output",
+            get_fixed_text(
+                vec!["1 == total\nexpect_equal(42, total)"],
+                "yoda_condition",
+                None
+            )
         );
     }
 
@@ -154,49 +159,49 @@ mod tests {
         1 | 1 == total
           | ---------- The actual result should come before the expected literal.
           |
-          = help: Use `total == 1` instead.
+          = help: Put the actual result on the left and the literal on the right.
         warning: yoda_condition
          --> <test>:2:5
           |
         2 | if (10L < quantity) discount <- 0.1
           |     -------------- The actual result should come before the expected literal.
           |
-          = help: Use `quantity > 10L` instead.
+          = help: Put the actual result on the left and the literal on the right.
         warning: yoda_condition
          --> <test>:3:1
           |
         3 | expect_equal(42, calculate_total(items))
           | ---------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `expect_equal(calculate_total(items), 42)` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
          --> <test>:4:1
           |
         4 | testthat::expect_identical("ready", get_status(job))
           | ---------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `testthat::expect_identical(get_status(job), "ready")` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
          --> <test>:5:1
           |
         5 | expect_setequal(3L, unique(values))
           | ----------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `expect_setequal(unique(values), 3L)` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
          --> <test>:6:1
           |
         6 | expect_equal(expected = total, object = 42)
           | ------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `expect_equal(total, 42)` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
          --> <test>:7:1
           |
         7 | expect_equal(7.5, calculate_mean(values), tolerance = 0.1)
           | ---------------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `expect_equal(calculate_mean(values), 7.5)` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
          --> <test>:8:1
           |
@@ -204,7 +209,7 @@ mod tests {
         9 | | x)
           | |__- The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
-          = help: Use `expect_equal(x, 2)` instead.
+          = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
           --> <test>:11:3
            |
@@ -214,14 +219,14 @@ mod tests {
         14 | |   )
            | |___- The actual result should be supplied as `object`, and the expected literal as `expected`.
            |
-           = help: Use `expect_equal(foo(x), "你好")` instead.
+           = help: Supply the actual result as `object` and the literal as `expected`.
         warning: yoda_condition
           --> <test>:16:10
            |
         16 | x |> foo(expect_equal(2, y))
            |          ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
            |
-           = help: Use `expect_equal(y, 2)` instead.
+           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 10 errors.
         "#
         );

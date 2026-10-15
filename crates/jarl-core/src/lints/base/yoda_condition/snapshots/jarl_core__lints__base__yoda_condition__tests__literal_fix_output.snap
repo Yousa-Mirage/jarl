@@ -1,0 +1,227 @@
+---
+source: crates/jarl-core/src/lints/base/yoda_condition/mod.rs
+expression: "get_unsafe_fixed_text(codes.iter().map(String::as_str).collect(),\n\"yoda_condition\")"
+---
+OLD:
+====
+expect_equal(1, foo(x))
+NEW:
+====
+expect_equal(foo(x), 1)
+
+OLD:
+====
+1 == foo(x)
+NEW:
+====
+foo(x) == 1
+
+OLD:
+====
+expect_equal(1L, foo(x))
+NEW:
+====
+expect_equal(foo(x), 1L)
+
+OLD:
+====
+1L == foo(x)
+NEW:
+====
+foo(x) == 1L
+
+OLD:
+====
+expect_equal(1i, foo(x))
+NEW:
+====
+expect_equal(foo(x), 1i)
+
+OLD:
+====
+1i == foo(x)
+NEW:
+====
+foo(x) == 1i
+
+OLD:
+====
+expect_equal('a', foo(x))
+NEW:
+====
+expect_equal(foo(x), 'a')
+
+OLD:
+====
+'a' == foo(x)
+NEW:
+====
+foo(x) == 'a'
+
+OLD:
+====
+expect_equal(r"(a\b)", foo(x))
+NEW:
+====
+expect_equal(foo(x), r"(a\b)")
+
+OLD:
+====
+r"(a\b)" == foo(x)
+NEW:
+====
+foo(x) == r"(a\b)"
+
+OLD:
+====
+expect_equal(TRUE, foo(x))
+NEW:
+====
+expect_equal(foo(x), TRUE)
+
+OLD:
+====
+TRUE == foo(x)
+NEW:
+====
+foo(x) == TRUE
+
+OLD:
+====
+expect_equal(FALSE, foo(x))
+NEW:
+====
+expect_equal(foo(x), FALSE)
+
+OLD:
+====
+FALSE == foo(x)
+NEW:
+====
+foo(x) == FALSE
+
+OLD:
+====
+expect_equal(NA, foo(x))
+NEW:
+====
+expect_equal(foo(x), NA)
+
+OLD:
+====
+NA == foo(x)
+NEW:
+====
+foo(x) == NA
+
+OLD:
+====
+expect_equal(NA_integer_, foo(x))
+NEW:
+====
+expect_equal(foo(x), NA_integer_)
+
+OLD:
+====
+NA_integer_ == foo(x)
+NEW:
+====
+foo(x) == NA_integer_
+
+OLD:
+====
+expect_equal(Inf, foo(x))
+NEW:
+====
+expect_equal(foo(x), Inf)
+
+OLD:
+====
+Inf == foo(x)
+NEW:
+====
+foo(x) == Inf
+
+OLD:
+====
+expect_equal(NaN, foo(x))
+NEW:
+====
+expect_equal(foo(x), NaN)
+
+OLD:
+====
+NaN == foo(x)
+NEW:
+====
+foo(x) == NaN
+
+OLD:
+====
+expect_equal(-1, foo(x))
+NEW:
+====
+expect_equal(foo(x), -1)
+
+OLD:
+====
+-1 == foo(x)
+NEW:
+====
+foo(x) == -1
+
+OLD:
+====
+expect_equal(((1)), foo(x))
+NEW:
+====
+expect_equal(foo(x), ((1)))
+
+OLD:
+====
+((1)) == foo(x)
+NEW:
+====
+foo(x) == ((1))
+
+OLD:
+====
+expect_equal(1 + 1, foo(x))
+NEW:
+====
+expect_equal(foo(x), 1 + 1)
+
+OLD:
+====
+1 + 1 == foo(x)
+NEW:
+====
+foo(x) == 1 + 1
+
+OLD:
+====
+expect_equal((1) + 1, foo(x))
+NEW:
+====
+expect_equal(foo(x), (1) + 1)
+
+OLD:
+====
+(1) + 1 == foo(x)
+NEW:
+====
+foo(x) == (1) + 1
+
+OLD:
+====
+expect_equal(2 + 1i, foo(x))
+NEW:
+====
+expect_equal(foo(x), 2 + 1i)
+
+OLD:
+====
+2 + 1i == foo(x)
+NEW:
+====
+foo(x) == 2 + 1i

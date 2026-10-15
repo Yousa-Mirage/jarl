@@ -75,7 +75,7 @@ pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnost
     } else {
         right.to_trimmed_string()
     };
-    let suggestion = format!("Use `{right_text} {replacement_operator} {left_text}` instead.");
+    let suggestion = "Put the actual result on the left and the literal on the right.".to_string();
 
     Ok(Some(Diagnostic::new(
         ViolationData::new(
@@ -185,10 +185,8 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
         Fix::empty()
     };
 
-    let object_text = object_value.to_trimmed_text();
-    let expected_text = expected_value.to_trimmed_text();
-    let function = ast.function()?.to_trimmed_text();
-    let suggestion = format!("Use `{function}({expected_text}, {object_text})` instead.");
+    let suggestion =
+        "Supply the actual result as `object` and the literal as `expected`.".to_string();
 
     Ok(Some(Diagnostic::new(
         ViolationData::new(
