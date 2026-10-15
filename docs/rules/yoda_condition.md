@@ -7,16 +7,13 @@
 
 Checks for literals on the left of `==`, `!=`, `<`, `<=`, `>`, and `>=`,
 or supplied as `object` in `expect_equal()`, `expect_identical()`, and
-`expect_setequal()`. Also reports comparisons where both values are literals.
+`expect_setequal()`.
 
 ## Why is this bad?
 
 Putting the expected value before the actual result, as in `1 == x`, is
 called a "Yoda condition". Writing the actual result first makes comparisons
 easier to read and testthat failure messages clearer.
-
-Comparisons of two literals, such as `1 == 1` or `expect_equal(1, 1)`, do not
-test the result of application code and cannot be fixed automatically.
 
 This rule is **disabled by default**. Select it either with the rule name
 `"yoda_condition"` or with the rule group `"READ"`.
