@@ -13,13 +13,10 @@ or supplied as `object` in `expect_equal()`, `expect_identical()`, and
 
 Putting the expected value before the actual result, as in `1 == x`, is
 called a "Yoda condition". Writing the actual result first makes comparisons
-easier to read and testthat failure messages clearer.
+easier to read.
 
-This rule is **disabled by default**. Select it either with the rule name
-`"yoda_condition"` or with the rule group `"READ"`.
-
-Automatic fixes require `--unsafe-fixes`: swapping values can change custom
-comparison methods, expectation return values, or tolerance-based results.
+This rule has an unsafe automatic fix because swapping values can change
+results, for instance due to S3 method dispatch.
 
 ## Example
 
@@ -35,3 +32,7 @@ x == 1
 length(x) > 10
 expect_equal(length(x), 2)
 ```
+
+## References
+
+* https://en.wikipedia.org/wiki/Yoda_conditions
