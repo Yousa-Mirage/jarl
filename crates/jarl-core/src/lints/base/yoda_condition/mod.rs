@@ -58,7 +58,6 @@ mod tests {
             "expect_equal('expected' = 2, x)",
             // Pipe input supplies the actual result.
             "x |> expect_equal(expected = 2, object = _)",
-            "x %>% (expect_equal(2, .))",
             // Missing, forwarded, or incomplete arguments.
             "expect_equal(1)",
             "expect_equal(, x)",
@@ -209,6 +208,33 @@ mod tests {
           |
         1 | x |> foo(expect_equal(2, y))
           |          ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        // An explicit `.` means the pipe does not supply `object`.
+        assert_snapshot!(
+            snapshot_lint("x %>% expect_equal(2, .)"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:7
+          |
+        1 | x %>% expect_equal(2, .)
+          |       ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("x %>% (expect_equal(2, .))"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:8
+          |
+        1 | x %>% (expect_equal(2, .))
+          |        ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
           |
           = help: Supply the actual result as `object` and the literal as `expected`.
         Found 1 error.

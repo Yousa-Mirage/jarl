@@ -58,45 +58,54 @@ pub fn yoda_condition(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnost
     };
 
     let left = ast.left()?;
-    if !is_literal(&left)? {
-        return Ok(None);
-    }
     let right = ast.right()?;
-    // Comparing two literals has no actual result to reorder.
-    if is_literal(&right)? {
+    if !is_yoda(&left, &right)? {
         return Ok(None);
     }
-    let range = ast.syntax().text_trimmed_range();
 
     // A right operand can contain a low-precedence prefix or an open-ended
     // body. Keep it grouped when moving it left, e.g. `1 == !x` -> `(!x) == 1`.
-    let left_text = left.to_trimmed_string();
-    let right_text = if needs_comparison_parentheses(&right)? {
-        format!("({})", right.to_trimmed_text())
-    } else {
-        right.to_trimmed_string()
-    };
-    let suggestion = "Put the actual result on the left and the literal on the right.".to_string();
+    let (left_edit, right_edit) = swap_edits(&left, &right, needs_comparison_parentheses(&right)?);
 
     Ok(Some(Diagnostic::new(
         ViolationData::new(
             Rule::YodaCondition,
             "The actual result should come before the expected literal.".to_string(),
-            Some(suggestion),
+            Some("Put the actual result on the left and the literal on the right.".to_string()),
         ),
-        range,
+        ast.syntax().text_trimmed_range(),
         Fix::from_edits(
             vec![
-                Edit::replacement(left.syntax().text_trimmed_range(), right_text),
+                left_edit,
                 Edit::replacement(
                     operator.text_trimmed_range(),
                     replacement_operator.to_string(),
                 ),
-                Edit::replacement(right.syntax().text_trimmed_range(), left_text),
+                right_edit,
             ],
             node_contains_comments(ast.syntax()),
         ),
     )))
+}
+
+/// A literal compared with something that is not itself a literal. Two
+/// literals have no actual result to reorder.
+fn is_yoda(literal: &AnyRExpression, other: &AnyRExpression) -> anyhow::Result<bool> {
+    Ok(is_literal(literal)? && !is_literal(other)?)
+}
+
+/// Edits exchanging the text of `a` and `b`, wrapping `b` in parentheses when
+/// it moves into `a`'s position and `parenthesize_b` is set.
+fn swap_edits(a: &AnyRExpression, b: &AnyRExpression, parenthesize_b: bool) -> (Edit, Edit) {
+    let b_text = if parenthesize_b {
+        format!("({})", b.to_trimmed_string())
+    } else {
+        b.to_trimmed_string()
+    };
+    (
+        Edit::replacement(a.syntax().text_trimmed_range(), b_text),
+        Edit::replacement(b.syntax().text_trimmed_range(), a.to_trimmed_string()),
+    )
 }
 
 fn needs_comparison_parentheses(expr: &AnyRExpression) -> anyhow::Result<bool> {
@@ -150,17 +159,11 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
 
     let object = unwrap_or_return_none!(get_arg(ast, FORMALS_EXPECT, "object"));
     let object_value = unwrap_or_return_none!(object.value());
-    if !is_literal(&object_value)? {
-        return Ok(None);
-    }
-
     let expected = unwrap_or_return_none!(get_arg(ast, FORMALS_EXPECT, "expected"));
     let expected_value = unwrap_or_return_none!(expected.value());
-
-    if is_literal(&expected_value)? {
+    if !is_yoda(&object_value, &expected_value)? {
         return Ok(None);
     }
-    let range = ast.syntax().text_trimmed_range();
 
     // Keep named arguments and custom labels for manual review. With two
     // unnamed arguments, only their values need to move; retain all other text.
@@ -169,34 +172,20 @@ pub fn yoda_test(ast: &RCall, fn_name: &str) -> anyhow::Result<Option<Diagnostic
         && expected.name_clause().is_none()
         && !node_contains_comments(ast.syntax())
     {
-        Fix::from_edits(
-            vec![
-                Edit::replacement(
-                    object_value.syntax().text_trimmed_range(),
-                    expected_value.to_trimmed_string(),
-                ),
-                Edit::replacement(
-                    expected_value.syntax().text_trimmed_range(),
-                    object_value.to_trimmed_string(),
-                ),
-            ],
-            false,
-        )
+        let (object_edit, expected_edit) = swap_edits(&object_value, &expected_value, false);
+        Fix::from_edits(vec![object_edit, expected_edit], false)
     } else {
         Fix::empty()
     };
-
-    let suggestion =
-        "Supply the actual result as `object` and the literal as `expected`.".to_string();
 
     Ok(Some(Diagnostic::new(
         ViolationData::new(
             Rule::YodaCondition,
             "The actual result should be supplied as `object`, and the expected literal as `expected`."
                 .to_string(),
-            Some(suggestion),
+            Some("Supply the actual result as `object` and the literal as `expected`.".to_string()),
         ),
-        range,
+        ast.syntax().text_trimmed_range(),
         fix,
     )))
 }
@@ -234,6 +223,8 @@ fn is_numeric_literal(expr: &AnyRExpression) -> anyhow::Result<bool> {
     }
 }
 
+/// Whether the call is the right-hand side of a pipe that supplies its first
+/// argument. A magrittr pipe with an explicit `.` argument does not.
 fn receives_pipe_input(ast: &RCall) -> anyhow::Result<bool> {
     let mut node = ast.syntax().clone();
     while let Some(parent) = node.parent() {
@@ -248,9 +239,22 @@ fn receives_pipe_input(ast: &RCall) -> anyhow::Result<bool> {
             return Ok(false);
         }
         let operator = binary.operator()?;
-        return Ok(operator.kind() == RSyntaxKind::PIPE
-            || (operator.kind() == RSyntaxKind::SPECIAL
-                && matches!(operator.text_trimmed(), "%>%" | "%!>%" | "%T>%" | "%<>%")));
+        if operator.kind() == RSyntaxKind::PIPE {
+            return Ok(true);
+        }
+        if operator.kind() != RSyntaxKind::SPECIAL
+            || !matches!(operator.text_trimmed(), "%>%" | "%!>%" | "%T>%" | "%<>%")
+        {
+            return Ok(false);
+        }
+        for arg in ast.arguments()?.items().iter() {
+            if let Some(AnyRExpression::RIdentifier(id)) = arg?.value()
+                && id.syntax().text_trimmed() == "."
+            {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
     }
     Ok(false)
 }
