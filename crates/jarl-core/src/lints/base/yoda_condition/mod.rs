@@ -80,9 +80,146 @@ mod tests {
 
     #[test]
     fn test_lint_yoda_condition() {
-        // Comparisons and expectations share literal detection.
         assert_snapshot!(
-            "literal_fix_output",
+            snapshot_lint("1 == total"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | 1 == total
+          | ---------- The actual result should come before the expected literal.
+          |
+          = help: Put the actual result on the left and the literal on the right.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("if (10L < quantity) discount <- 0.1"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:5
+          |
+        1 | if (10L < quantity) discount <- 0.1
+          |     -------------- The actual result should come before the expected literal.
+          |
+          = help: Put the actual result on the left and the literal on the right.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("expect_equal(42, calculate_total(items))"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | expect_equal(42, calculate_total(items))
+          | ---------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("testthat::expect_identical(\"ready\", get_status(job))"),
+            @r#"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | testthat::expect_identical("ready", get_status(job))
+          | ---------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "#
+        );
+        assert_snapshot!(
+            snapshot_lint("expect_setequal(3L, unique(values))"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | expect_setequal(3L, unique(values))
+          | ----------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("expect_equal(expected = total, object = 42)"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | expect_equal(expected = total, object = 42)
+          | ------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("expect_equal(7.5, calculate_mean(values), tolerance = 0.1)"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | expect_equal(7.5, calculate_mean(values), tolerance = 0.1)
+          | ---------------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("expect_equal(2, # expected\nx)"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:1
+          |
+        1 | / expect_equal(2, # expected
+        2 | | x)
+          | |__- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("test_that(\"你好\", {\n  expect_equal(\n    \"你好\",\n    foo(x)\n  )\n})"),
+            @r#"
+        warning: yoda_condition
+         --> <test>:2:3
+          |
+        2 | /   expect_equal(
+        3 | |     "你好",
+        4 | |     foo(x)
+        5 | |   )
+          | |___- The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "#
+        );
+        assert_snapshot!(
+            snapshot_lint("x |> foo(expect_equal(2, y))"),
+            @"
+        warning: yoda_condition
+         --> <test>:1:10
+          |
+        1 | x |> foo(expect_equal(2, y))
+          |          ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
+          |
+          = help: Supply the actual result as `object` and the literal as `expected`.
+        Found 1 error.
+        "
+        );
+    }
+
+    #[test]
+    fn test_yoda_condition_fix() {
+        assert_snapshot!(
+            "fix_output",
             get_unsafe_fixed_text(
                 vec![
                     "expect_equal(1, foo(x))",
@@ -117,124 +254,6 @@ mod tests {
                     "(1) + 1 == foo(x)",
                     "expect_equal(2 + 1i, foo(x))",
                     "2 + 1i == foo(x)",
-                ],
-                "yoda_condition"
-            )
-        );
-
-        // Ordinary fixes must leave comparisons and expectations unchanged.
-        assert_snapshot!(
-            "safe_fix_output",
-            get_fixed_text(
-                vec!["1 == total\nexpect_equal(42, total)"],
-                "yoda_condition",
-                None
-            )
-        );
-    }
-
-    #[test]
-    fn test_yoda_condition_snapshots() {
-        assert_snapshot!(
-            snapshot_lint(
-                &[
-                    "1 == total",
-                    "if (10L < quantity) discount <- 0.1",
-                    "expect_equal(42, calculate_total(items))",
-                    "testthat::expect_identical(\"ready\", get_status(job))",
-                    "expect_setequal(3L, unique(values))",
-                    "expect_equal(expected = total, object = 42)",
-                    "expect_equal(7.5, calculate_mean(values), tolerance = 0.1)",
-                    "expect_equal(2, # expected\nx)",
-                    "test_that(\"你好\", {\n  expect_equal(\n    \"你好\",\n    foo(x)\n  )\n})",
-                    // Independent calls inside a pipe must still be checked.
-                    "x |> foo(expect_equal(2, y))",
-                ]
-                .join("\n")
-            ),
-            @r#"
-        warning: yoda_condition
-         --> <test>:1:1
-          |
-        1 | 1 == total
-          | ---------- The actual result should come before the expected literal.
-          |
-          = help: Put the actual result on the left and the literal on the right.
-        warning: yoda_condition
-         --> <test>:2:5
-          |
-        2 | if (10L < quantity) discount <- 0.1
-          |     -------------- The actual result should come before the expected literal.
-          |
-          = help: Put the actual result on the left and the literal on the right.
-        warning: yoda_condition
-         --> <test>:3:1
-          |
-        3 | expect_equal(42, calculate_total(items))
-          | ---------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-         --> <test>:4:1
-          |
-        4 | testthat::expect_identical("ready", get_status(job))
-          | ---------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-         --> <test>:5:1
-          |
-        5 | expect_setequal(3L, unique(values))
-          | ----------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-         --> <test>:6:1
-          |
-        6 | expect_equal(expected = total, object = 42)
-          | ------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-         --> <test>:7:1
-          |
-        7 | expect_equal(7.5, calculate_mean(values), tolerance = 0.1)
-          | ---------------------------------------------------------- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-         --> <test>:8:1
-          |
-        8 | / expect_equal(2, # expected
-        9 | | x)
-          | |__- The actual result should be supplied as `object`, and the expected literal as `expected`.
-          |
-          = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-          --> <test>:11:3
-           |
-        11 | /   expect_equal(
-        12 | |     "你好",
-        13 | |     foo(x)
-        14 | |   )
-           | |___- The actual result should be supplied as `object`, and the expected literal as `expected`.
-           |
-           = help: Supply the actual result as `object` and the literal as `expected`.
-        warning: yoda_condition
-          --> <test>:16:10
-           |
-        16 | x |> foo(expect_equal(2, y))
-           |          ------------------ The actual result should be supplied as `object`, and the expected literal as `expected`.
-           |
-           = help: Supply the actual result as `object` and the literal as `expected`.
-        Found 10 errors.
-        "#
-        );
-
-        assert_snapshot!(
-            "fix_output",
-            get_unsafe_fixed_text(
-                vec![
                     "1 == total\n'a' != name\n10L < quantity\n2 <= length(x)\n3 > value\n4 >= value",
                     "if (1 == x) foo()\nwhile (0 < remaining) remaining <- remaining - 1",
                     "dplyr::filter(data, 'ready' == status)",
@@ -259,7 +278,10 @@ mod tests {
                 "yoda_condition"
             )
         );
+    }
 
+    #[test]
+    fn test_yoda_condition_no_fix() {
         assert_snapshot!(
             "no_fix_output",
             get_unsafe_fixed_text(
