@@ -1,6 +1,5 @@
 ---
 source: crates/jarl-core/src/lints/base/yoda_condition/mod.rs
-assertion_line: 84
 expression: "get_unsafe_fixed_text(vec![\"expect_equal(1, foo(x))\", \"1 == foo(x)\",\n\"expect_equal(1L, foo(x))\", \"1L == foo(x)\", \"expect_equal(1i, foo(x))\",\n\"1i == foo(x)\", \"expect_equal('a', foo(x))\", \"'a' == foo(x)\",\n\"expect_equal(r\\\"(a\\\\b)\\\", foo(x))\", \"r\\\"(a\\\\b)\\\" == foo(x)\",\n\"expect_equal(TRUE, foo(x))\", \"TRUE == foo(x)\", \"expect_equal(FALSE, foo(x))\",\n\"FALSE == foo(x)\", \"expect_equal(NA, foo(x))\", \"NA == foo(x)\",\n\"expect_equal(NA_integer_, foo(x))\", \"NA_integer_ == foo(x)\",\n\"expect_equal(Inf, foo(x))\", \"Inf == foo(x)\", \"expect_equal(NaN, foo(x))\",\n\"NaN == foo(x)\", \"expect_equal(-1, foo(x))\", \"-1 == foo(x)\",\n\"expect_equal(((1)), foo(x))\", \"((1)) == foo(x)\",\n\"expect_equal(1 + 1, foo(x))\", \"1 + 1 == foo(x)\",\n\"expect_equal((1) + 1, foo(x))\", \"(1) + 1 == foo(x)\",\n\"expect_equal(2 + 1i, foo(x))\", \"2 + 1i == foo(x)\",], \"yoda_condition\")"
 ---
 OLD:
