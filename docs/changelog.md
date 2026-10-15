@@ -23,9 +23,13 @@
 
 * New rules:
 
+  * `consecutive_signs` (#745, @Yousa-Mirage)
   * `library_call` (#701)
   * `undesirable_operator` (#657, @christopherkenny)
   * `yoda_condition` (#733, @Yousa-Mirage)
+
+* `jarl check --stdin-file-path <PATH>` lints code read from stdin, using `<PATH>`
+  for config discovery, package detection, `exclude` patterns and diagnostics (#749).
 
 * The config file can be named `.jarl.toml` as well as `jarl.toml`. Both names
   are equivalent, and a directory containing both is now an error instead of
@@ -44,6 +48,12 @@
 
 * The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
   cannot be applied because the violation is in part of `@examples` (#702).
+
+* The JSON output now contains information on the fix ("safe", "unsafe", or "none")
+  (#747).
+
+* The JSON output now reports more information on syntax errors
+  (`message`, `range`, `location`) (#748).
 
 ### Bug fixes
 
@@ -182,6 +192,10 @@
 * New argument `skipped-functions` for the `true_false_symbol` rule in `jarl.toml`
   to list functions whose arguments are allowed to contain the `T` and `F`
   symbols (#542).
+
+* `undesirable_function` now accepts inline tables in `functions` and
+  `extend-functions` to attach custom suggestions to undesirable functions
+  (#726).
 
 
 ### Other improvements
