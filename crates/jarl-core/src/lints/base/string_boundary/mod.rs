@@ -122,6 +122,29 @@ mod tests {
     }
 
     #[test]
+    fn test_string_boundary_carriage_returns_no_lint() {
+        for literal in [r#""a\r\nb""#, r#"r"(a\r\nb)""#, r#""a\rb""#, r#"r"(a\rb)""#] {
+            // Insert actual CR/CRLF bytes, rather than R escape sequences.
+            let literal = literal.replace(r"\r", "\r").replace(r"\n", "\n");
+            for width in [3, 4] {
+                expect_no_lint(
+                    &format!("substr(x, 1, {width}) == {literal}"),
+                    "string_boundary",
+                    None,
+                );
+                expect_no_lint(
+                    &format!(
+                        "substring(x, nchar(x) - {}, nchar(x)) == {literal}",
+                        width - 1
+                    ),
+                    "string_boundary",
+                    None,
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_lint_string_boundary() {
         assert_snapshot!(
             snapshot_lint("substr(x, 1, 2) == 'ab'"),
@@ -162,6 +185,81 @@ mod tests {
         Found 1 error.
         "
         );
+        assert_snapshot!(
+            snapshot_lint("substr(x, \n # a comment \n1, 2) == 'ab'"),
+            @"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substr(x, 
+        2 | |  # a comment 
+        3 | | 1, 2) == 'ab'
+          | |_____________- Using `substr()` to detect an initial substring is hard to read and inefficient.
+          |
+          = help: Use `startsWith()` instead.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("substr(x, 1, 3) == \"a\nb\""),
+            @r#"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substr(x, 1, 3) == "a
+        2 | | b"
+          | |__- Using `substr()` to detect an initial substring is hard to read and inefficient.
+          |
+          = help: Use `startsWith()` instead.
+        Found 1 error.
+        "#
+        );
+        assert_snapshot!(
+            snapshot_lint("substring(x, nchar(x) - 2, nchar(x)) == \"a\nb\""),
+            @r#"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substring(x, nchar(x) - 2, nchar(x)) == "a
+        2 | | b"
+          | |__- Using `substring()` to detect a terminal substring is hard to read and inefficient.
+          |
+          = help: Use `endsWith()` instead.
+        Found 1 error.
+        "#
+        );
+        assert_snapshot!(
+            snapshot_lint("substr(x, 1, 3) == r\"(a\nb)\""),
+            @r#"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substr(x, 1, 3) == r"(a
+        2 | | b)"
+          | |___- Using `substr()` to detect an initial substring is hard to read and inefficient.
+          |
+          = help: Use `startsWith()` instead.
+        Found 1 error.
+        "#
+        );
+        assert_snapshot!(
+            snapshot_lint("substring(x, nchar(x) - 2, nchar(x)) == r\"(a\nb)\""),
+            @r#"
+        warning: string_boundary
+         --> <test>:1:1
+          |
+        1 | / substring(x, nchar(x) - 2, nchar(x)) == r"(a
+        2 | | b)"
+          | |___- Using `substring()` to detect a terminal substring is hard to read and inefficient.
+          |
+          = help: Use `endsWith()` instead.
+        Found 1 error.
+        "#
+        );
+    }
+
+    #[test]
+    fn test_fix_string_boundary() {
         assert_snapshot!(
             "fix_output",
             get_unsafe_fixed_text(
@@ -234,57 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_string_boundary_carriage_returns_no_lint() {
-        // These Rust escapes insert actual CR/CRLF bytes into the R source.
-        for literal in ["\"a\r\nb\"", "r\"(a\r\nb)\"", "\"a\rb\"", "r\"(a\rb)\""] {
-            for width in [3, 4] {
-                expect_no_lint(
-                    &format!("substr(x, 1, {width}) == {literal}"),
-                    "string_boundary",
-                    None,
-                );
-                expect_no_lint(
-                    &format!(
-                        "substring(x, nchar(x) - {}, nchar(x)) == {literal}",
-                        width - 1
-                    ),
-                    "string_boundary",
-                    None,
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_string_boundary_line_feeds() {
-        for literal in ["\"a\nb\"", "r\"(a\nb)\""] {
-            for code in [
-                format!("substr(x, 1, 3) == {literal}"),
-                format!("substring(x, nchar(x) - 2, nchar(x)) == {literal}"),
-            ] {
-                assert_eq!(check_code(&code, "string_boundary", None).len(), 1);
-            }
-        }
-    }
-
-    #[test]
     fn test_string_boundary_with_comments_no_fix() {
-        // Should detect lint but skip fix when comments are present to avoid destroying them
-        assert_snapshot!(
-            snapshot_lint("substr(x, \n # a comment \n1, 2) == 'ab'"),
-            @"
-        warning: string_boundary
-         --> <test>:1:1
-          |
-        1 | / substr(x, 
-        2 | |  # a comment 
-        3 | | 1, 2) == 'ab'
-          | |_____________- Using `substr()` to detect an initial substring is hard to read and inefficient.
-          |
-          = help: Use `startsWith()` instead.
-        Found 1 error.
-        "
-        );
         assert_snapshot!(
             "no_fix_with_comments",
             get_unsafe_fixed_text(
