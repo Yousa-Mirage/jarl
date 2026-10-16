@@ -12,10 +12,95 @@ mod tests {
     #[test]
     fn test_lint_one_call_pipe() {
         assert_snapshot!(
-            "lint_one_call_pipe",
-            snapshot_lint(
-                "x |> sum()\n1:10 %>% sum()\n(x + 1) |> abs()\nx %T>% sum()\nx %>% { sum(.) }\nx %>% .()\nx |> _()"
-            )
+            snapshot_lint("x |> sum()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | x |> sum()
+          | ---------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Replace with `sum(x)`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("1:10 %>% sum()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | 1:10 %>% sum()
+          | -------------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Replace with `sum(1:10)`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("(x + 1) |> abs()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | (x + 1) |> abs()
+          | ---------------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Replace with `abs((x + 1))`.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("x %T>% sum()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | x %T>% sum()
+          | ------------ Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Use a regular function call instead.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("x %>% { sum(.) }"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | x %>% { sum(.) }
+          | ---------------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Use a regular function call instead.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("x %>% .()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | x %>% .()
+          | --------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Use a regular function call instead.
+        Found 1 error.
+        "
+        );
+        assert_snapshot!(
+            snapshot_lint("x |> _()"),
+            @"
+        warning: one_call_pipe
+         --> <test>:1:1
+          |
+        1 | x |> _()
+          | -------- Avoid using a pipe for an expression with only one function call.
+          |
+          = help: Use a regular function call instead.
+        Found 1 error.
+        "
         );
     }
 
