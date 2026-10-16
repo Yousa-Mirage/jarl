@@ -10,6 +10,65 @@ mod tests {
     }
 
     #[test]
+    fn test_no_lint_one_call_pipe_boundaries() {
+        // A call anywhere in the left expression counts, not only a call at
+        // its root. Parentheses and infix/subset expressions don't hide it.
+        for code in [
+            "(f(x) + 1) |> abs()",
+            "(x + f(y)) |> abs()",
+            "(x[transform(y)]) |> abs()",
+            "(pkg::prepare(x) + 1) %>% abs()",
+            "rowSums(x) %>% mean()",
+            "foo(bar(x)) |> abs()",
+            "f(x) |> g()",
+            "(f(x)) |> g()",
+            "(x + f(y) + g(z)) |> h()",
+            "(x + 1) |> f(g())",
+            "(x |> f()) |> g()",
+            "x %>% sum() %>% mean()",
+            "x |> sum() |> mean()",
+            "x %>% sum() %>% mean() %>% sd()",
+        ] {
+            expect_no_lint(code, "one_call_pipe", None);
+        }
+    }
+
+    #[test]
+    fn test_no_lint_rhs_call_with_arguments() {
+        for code in [
+            "xgb_spec |> fit_xy(mtcar_mat, mtcars$mpg)",
+            "df |> select(x)",
+            "df %>% select(x)",
+            "df |> dplyr::select(x)",
+            "df |> mutate(y = x)",
+            "df |> f(y = g())",
+            "x %>% f(.)",
+            "x |> f(_)",
+        ] {
+            expect_no_lint(code, "one_call_pipe", None);
+        }
+    }
+
+    #[test]
+    fn test_no_lint_non_pipe_expressions() {
+        for code in [
+            "x + 1",
+            "x %other% sum()",
+            "sum(x)",
+            "x |> y",
+            "x %>% y",
+            "x |> 1",
+            "x %>% { sum(.) + mean(.) }",
+            "x |> f",
+            "x %>% identity",
+            "x %other% f()",
+            "x <- y",
+        ] {
+            expect_no_lint(code, "one_call_pipe", None);
+        }
+    }
+
+    #[test]
     fn test_lint_one_call_pipe() {
         assert_snapshot!(
             snapshot_lint("x |> sum()"),
@@ -125,64 +184,5 @@ mod tests {
                 None,
             )
         );
-    }
-
-    #[test]
-    fn test_no_lint_one_call_pipe_boundaries() {
-        // A call anywhere in the left expression counts, not only a call at
-        // its root. Parentheses and infix/subset expressions don't hide it.
-        for code in [
-            "(f(x) + 1) |> abs()",
-            "(x + f(y)) |> abs()",
-            "(x[transform(y)]) |> abs()",
-            "(pkg::prepare(x) + 1) %>% abs()",
-            "rowSums(x) %>% mean()",
-            "foo(bar(x)) |> abs()",
-            "f(x) |> g()",
-            "(f(x)) |> g()",
-            "(x + f(y) + g(z)) |> h()",
-            "(x + 1) |> f(g())",
-            "(x |> f()) |> g()",
-            "x %>% sum() %>% mean()",
-            "x |> sum() |> mean()",
-            "x %>% sum() %>% mean() %>% sd()",
-        ] {
-            expect_no_lint(code, "one_call_pipe", None);
-        }
-    }
-
-    #[test]
-    fn test_no_lint_rhs_call_with_arguments() {
-        for code in [
-            "xgb_spec |> fit_xy(mtcar_mat, mtcars$mpg)",
-            "df |> select(x)",
-            "df %>% select(x)",
-            "df |> dplyr::select(x)",
-            "df |> mutate(y = x)",
-            "df |> f(y = g())",
-            "x %>% f(.)",
-            "x |> f(_)",
-        ] {
-            expect_no_lint(code, "one_call_pipe", None);
-        }
-    }
-
-    #[test]
-    fn test_no_lint_non_pipe_expressions() {
-        for code in [
-            "x + 1",
-            "x %other% sum()",
-            "sum(x)",
-            "x |> y",
-            "x %>% y",
-            "x |> 1",
-            "x %>% { sum(.) + mean(.) }",
-            "x |> f",
-            "x %>% identity",
-            "x %other% f()",
-            "x <- y",
-        ] {
-            expect_no_lint(code, "one_call_pipe", None);
-        }
     }
 }
