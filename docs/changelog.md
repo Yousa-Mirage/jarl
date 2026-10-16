@@ -15,7 +15,21 @@
   "fix": { "edits": [ { "range": [0, 13], "content": "anyNA(x)" } ], "to_skip": false }
   ```
 
+### Deprecations
+
+* The `internal_function` rule is deprecated. Use `undesirable_operator` instead.
+
 ### Changes
+
+* New rules:
+
+  * `consecutive_signs` (#745, @Yousa-Mirage)
+  * `library_call` (#701)
+  * `undesirable_operator` (#657, @christopherkenny)
+  * `yoda_condition` (#733, @Yousa-Mirage)
+
+* `jarl check --stdin-file-path <PATH>` lints code read from stdin, using `<PATH>`
+  for config discovery, package detection, `exclude` patterns and diagnostics (#749).
 
 * The config file can be named `.jarl.toml` as well as `jarl.toml`. Both names
   are equivalent, and a directory containing both is now an error instead of
@@ -24,12 +38,22 @@
 * `expect_length` no longer reports cases where `length()` is in the `expected`
   argument, e.g. `expect_equal(nrow(x), length(y))` (#684).
 
+* The `nzchar` rule now also reports comparisons of `nchar(x)` with zero, such
+  as `nchar(x) == 0`, and its fixes preserve missing values with
+  `keepNA = TRUE` (#705, @Yousa-Mirage).
+
 * Only use placeholder text in messages and suggestions (#722).
 
 * The LSP now also publishes diagnostics when opening a file (#685).
 
 * The CLI now prints a message suggesting `fix-roxygen = true` when some fixes
   cannot be applied because the violation is in part of `@examples` (#702).
+
+* The JSON output now contains information on the fix ("safe", "unsafe", or "none")
+  (#747).
+
+* The JSON output now reports more information on syntax errors
+  (`message`, `range`, `location`) (#748).
 
 ### Bug fixes
 
@@ -171,6 +195,10 @@
 * New argument `skipped-functions` for the `true_false_symbol` rule in `jarl.toml`
   to list functions whose arguments are allowed to contain the `T` and `F`
   symbols (#542).
+
+* `undesirable_function` now accepts inline tables in `functions` and
+  `extend-functions` to attach custom suggestions to undesirable functions
+  (#726).
 
 
 ### Other improvements
