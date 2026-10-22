@@ -203,7 +203,7 @@ Therefore, I release 0.7.1 so that all releases with 0.7.1 match, no matter wher
 * Jarl now reports rule violations in files that contain syntax errors and provides
   clearer messages for syntax errors (#538, #569).
 
-* New `--output-format sarif` to export to [SARIF](https://sarifweb.azurewebsites.net/)
+* New `--output-format sarif` to export to [SARIF](https://github.com/microsoft/sarif-tutorials)
   (#508, @dieghernan).
 
 * Clearer output for `jarl check --help` (#521).
