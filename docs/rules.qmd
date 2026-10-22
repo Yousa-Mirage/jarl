@@ -134,7 +134,7 @@ dat <- as.data.frame(
     c("repeat", "readability", "✅", ""),
     c("sample_int", "readability", "✅", ""),
     c("seq", "suspicious", "✅", ""),
-    c("seq2", "suspicious", "✅", ""),
+    c("seq2", "readability, suspicious", "✅", ""),
     c("sort", "performance, readability", "✅", ""),
     c("sprintf", "correctness, suspicious", "✅", ""),
     c("stopifnot_all", "readability", "❗", "Disabled by default"),

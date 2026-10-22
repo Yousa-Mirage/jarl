@@ -1,5 +1,14 @@
 # Changelog
 
+## Development version
+
+### New features
+
+* Improved rules:
+
+  * The `seq2` rule now also reports `seq_len(length(...))` and suggests `seq_along(...)`
+    (#761, @JosephBARBIERDARNAL).
+
 ## 0.7.1
 
 This release doesn't contain any change compared to the 0.7.0 release found on Github.

@@ -604,7 +604,7 @@ declare_rules! {
     },
     Seq2 => {
         name: "seq2",
-        categories: [Susp],
+        categories: [Read, Susp],
         default: Enabled,
         fix: Safe,
         min_r_version: None,
