@@ -97,6 +97,12 @@ Therefore, I release 0.7.1 so that all releases with 0.7.1 match, no matter wher
 
 ### Bug fixes
 
+* Fix `string_boundary` false positives for mismatched substring widths and
+  reordered named arguments, and mark its fixes as unsafe (#698, @Yousa-Mirage).
+
+* Prevent `unused_function` and `unused_object` from falsely reporting non-ASCII
+  names (#706, @Yousa-Mirage).
+
 * Recognize parenthesized `TRUE` conditions in `repeat` and preserve loop body
   comments when applying fixes (#754, @Yousa-Mirage).
 
