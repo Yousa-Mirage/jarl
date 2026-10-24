@@ -21,6 +21,11 @@
 * `undesirable_operator` now accepts inline tables in `operators` and
   `extend-operators` to attach custom messages to undesirable operators (#742).
 
+### Bug fixes
+
+* Prevent `unused_object` from reporting objects exported by `exportPattern()`
+  (#711, @Yousa-Mirage).
+
 ## 0.7.1
 
 This release doesn't contain any change compared to the 0.7.0 release found on Github.
