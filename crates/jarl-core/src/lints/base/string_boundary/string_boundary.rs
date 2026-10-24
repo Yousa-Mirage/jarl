@@ -3,7 +3,6 @@ use crate::rule_set::Rule;
 use crate::utils::{Formals, get_arg, get_function_name, node_contains_comments};
 use air_r_syntax::*;
 use biome_rowan::{AstNode, AstSeparatedList};
-use oak_semantic::effects::CallContext;
 
 /// <!-- docs: start -->
 /// Version added: 0.3.0
@@ -79,22 +78,25 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
     // Only check for comparisons to non-empty string literals
     let width = unwrap_or_return_none!(literal_string_length(string_expr));
 
-    // Bind the call arguments to the formal parameters and extract them
-    let bound = CallContext::default().bind_arguments(call, formals);
-    let x_arg = unwrap_or_return_none!(bound.get(formals[0]));
-    let start_arg = unwrap_or_return_none!(bound.get(formals[1]));
-    let end_arg = unwrap_or_return_none!(bound.get(formals[2]));
+    // Extract the arguments matching the formal parameters
+    let x_arg =
+        unwrap_or_return_none!(get_arg(call, formals, formals[0]).and_then(|arg| arg.value()));
+    let start_arg =
+        unwrap_or_return_none!(get_arg(call, formals, formals[1]).and_then(|arg| arg.value()));
+    let end_arg =
+        unwrap_or_return_none!(get_arg(call, formals, formals[2]).and_then(|arg| arg.value()));
 
     // Get the string being compared
     let string_text = string_expr.syntax().text_trimmed();
     let x_text = x_arg.syntax().text_trimmed();
 
     // Check if the call is a substring at the start or end of the string
-    let (replacement_fn, boundary) = if literal_integer(start_arg) == Some(1)
-        && literal_integer(end_arg) == Some(width)
+    let (replacement_fn, boundary) = if literal_integer(&start_arg) == Some(1)
+        && literal_integer(&end_arg) == Some(width)
     {
         ("startsWith", "an initial")
-    } else if is_nchar_of_same_expr(end_arg, x_arg) && is_suffix_start(start_arg, x_arg, width) {
+    } else if is_nchar_of_same_expr(&end_arg, &x_arg) && is_suffix_start(&start_arg, &x_arg, width)
+    {
         ("endsWith", "a terminal")
     } else {
         return Ok(None);
@@ -123,10 +125,9 @@ pub fn string_boundary(ast: &RBinaryExpression) -> anyhow::Result<Option<Diagnos
 // Check if the expression is a string literal with a known length, returning None if it is not.
 fn literal_string_length(expr: &AnyRExpression) -> Option<usize> {
     let string = expr.as_any_r_value()?.as_r_string_value()?;
-    let content_token = string.content_token()?;
-    let content = content_token.text_trimmed();
-    let open = string.open_token().ok()?;
-    let is_raw = open.text_trimmed().starts_with(['r', 'R']);
+    let is_raw = string.value().ok()?.kind() == RSyntaxKind::R_RAW_STRING_LITERAL;
+    let content = string.inner_string_text().ok()?;
+    let content = content.text();
 
     // R normalizes source line endings; escapes also change the runtime length.
     // Skip both rather than count their source spelling.
