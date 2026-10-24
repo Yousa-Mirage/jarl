@@ -18,6 +18,9 @@
   in files with parsing errors (#762). Thanks to Davis Vaughan for his work
   upstream in Air and Aether.
 
+* `undesirable_operator` now accepts inline tables in `operators` and
+  `extend-operators` to attach custom messages to undesirable operators (#742).
+
 ## 0.7.1
 
 This release doesn't contain any change compared to the 0.7.0 release found on Github.
