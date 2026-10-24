@@ -1,6 +1,6 @@
 # todo_comment
 
-::: {.callout-note title="Added in 0.7.0" .low-opacity}
+::: {.callout-note title="Added in 0.8.0" .low-opacity}
 :::
 
 ## What it does

@@ -47,7 +47,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO
-          | ------ Remove TODO comments.
+          | ------ Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -60,7 +60,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # FIXME
-          | ------- Remove TODO comments.
+          | ------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -73,7 +73,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # tOdO later
-          | ------------ Remove TODO comments.
+          | ------------ Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -86,7 +86,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # fIxMe    later
-          | ---------------- Remove TODO comments.
+          | ---------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -99,7 +99,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | #TODO123
-          | -------- Remove TODO comments.
+          | -------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -112,7 +112,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO123abc
-          | ------------ Remove TODO comments.
+          | ------------ Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -125,7 +125,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # FIXME９
-          | --------- Remove TODO comments.
+          | --------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -138,7 +138,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO: later
-          | ------------- Remove TODO comments.
+          | ------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -151,7 +151,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # FIXME(issue): later
-          | --------------------- Remove TODO comments.
+          | --------------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -164,7 +164,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO_task
-          | ----------- Remove TODO comments.
+          | ----------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -177,7 +177,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # FIXME.md
-          | ---------- Remove TODO comments.
+          | ---------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -190,7 +190,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO🛠
-          | ------- Remove TODO comments.
+          | ------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -203,7 +203,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | ### TODO: later
-          | --------------- Remove TODO comments.
+          | --------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -216,7 +216,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | #    TODO later
-          | --------------- Remove TODO comments.
+          | --------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -229,7 +229,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | #' FIXME: document this
-          | ----------------------- Remove TODO comments.
+          | ----------------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -242,7 +242,7 @@ mod tests {
          --> <test>:1:8
           |
         1 | x <- 1 # TODO: later
-          |        ------------- Remove TODO comments.
+          |        ------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -255,7 +255,7 @@ mod tests {
          --> <test>:2:3
           |
         2 |   # FIXME: later
-          |   -------------- Remove TODO comments.
+          |   -------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "
@@ -268,7 +268,7 @@ mod tests {
          --> <test>:1:1
           |
         1 | # TODO and FIXME: one diagnostic
-          | -------------------------------- Remove TODO comments.
+          | -------------------------------- Remove TODO and FIXME comments.
           |
         Found 1 error.
         "

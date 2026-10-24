@@ -6,7 +6,7 @@ use biome_rowan::Direction;
 pub struct TodoComment;
 
 /// <!-- docs: start -->
-/// Version added: 0.7.0
+/// Version added: 0.8.0
 ///
 /// ## What it does
 ///
@@ -42,7 +42,7 @@ impl Violation for TodoComment {
     }
 
     fn body(&self) -> String {
-        "Remove TODO comments.".to_string()
+        "Remove TODO and FIXME comments.".to_string()
     }
 }
 
