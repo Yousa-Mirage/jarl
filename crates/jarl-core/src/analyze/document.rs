@@ -7,6 +7,7 @@ use crate::diagnostic::*;
 use crate::lints::base::assignment_on_if_no_else::assignment_on_if_no_else::assignment_on_if_no_else;
 use crate::lints::base::empty_file::empty_file::empty_file;
 use crate::lints::base::library_call::library_call::library_call;
+use crate::lints::base::todo_comment::todo_comment::todo_comment;
 use crate::lints::base::unreachable_code::unreachable_code::unreachable_code_top_level;
 use crate::lints::base::unused_object::unused_object::unused_object;
 use crate::lints::comments::blanket_suppression::blanket_suppression::blanket_suppression;
@@ -70,6 +71,12 @@ pub(crate) fn check_document(
     }
 
     // --- Comment/suppression checks ---
+
+    if checker.is_rule_enabled(Rule::TodoComment) {
+        for diagnostic in todo_comment(syntax) {
+            checker.report_diagnostic(Some(diagnostic));
+        }
+    }
 
     // Report blanket suppression comments (file-level, done once)
     if checker.is_rule_enabled(Rule::BlanketSuppression) {
