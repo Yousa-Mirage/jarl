@@ -10,9 +10,9 @@ use crate::utils::StatementsExt;
 use crate::vcs::check_version_control;
 use air_fs::relativize_path;
 use air_r_parser::RParserOptions;
-use air_r_syntax::RSyntaxNode;
+use air_r_syntax::{RBinaryExpression, RSyntaxNode};
 use anyhow::{Context, Result};
-use biome_rowan::{AstNode, TextRange, TextSize};
+use biome_rowan::{AstNode, SyntaxNodeCast, TextRange, TextSize};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -727,6 +727,25 @@ fn get_checks_roxygen(
             check_expression(expr, &mut checker)?;
         }
 
+        let semantic = checker.requires_semantic_analysis().then(|| {
+            oak_semantic::build_index(
+                &parsed.tree(),
+                jarl_semantic::JarlImportsResolver::with_cache(
+                    file,
+                    checker.source_index_cache.clone(),
+                ),
+            )
+        });
+
+        if let Some(semantic) = semantic.as_ref() {
+            // What the example inherits from the package, plus whatever it
+            // attaches itself (`library(glue)` on the first line is common).
+            checker.loaded_packages = context.loaded_packages.to_vec();
+            checker
+                .loaded_packages
+                .extend(top_level_attached_packages(semantic));
+        }
+
         // Objects created by an example live in the throwaway environment that
         // `example()` runs it in, so each section is its own universe: nothing
         // it binds can be exported or read by another file, which is why
@@ -734,28 +753,37 @@ fn get_checks_roxygen(
         //
         // Run before `check_document` so that suppression filtering there
         // covers these diagnostics too.
-        if checker.is_rule_enabled(crate::rule_set::Rule::UnusedObject) {
-            let semantic = oak_semantic::build_index(
-                &parsed.tree(),
-                jarl_semantic::JarlImportsResolver::with_cache(
-                    file,
-                    checker.source_index_cache.clone(),
-                ),
-            );
-            // What the example inherits from the package, plus whatever it
-            // attaches itself (`library(glue)` on the first line is common).
-            checker.loaded_packages = context.loaded_packages.to_vec();
-            checker
-                .loaded_packages
-                .extend(top_level_attached_packages(&semantic));
-
+        if let Some(semantic) = semantic.as_ref() {
             let owned: Vec<RSyntaxNode> = expressions.iter().map(|e| e.syntax().clone()).collect();
-            crate::lints::base::unused_object::unused_object::unused_object(
+            let info = jarl_semantic::SemanticInfo::build(
+                &syntax,
                 &owned,
-                &semantic,
-                &std::collections::HashSet::new(),
-                &mut checker,
-            )?;
+                semantic,
+                &checker.source_index_cache,
+                &checker.packages_in_reach(),
+                &checker.unevaluated_ranges(),
+            );
+            if checker.is_rule_enabled(crate::rule_set::Rule::UnusedObject) {
+                crate::lints::base::unused_object::unused_object::unused_object(
+                    &info,
+                    semantic,
+                    &std::collections::HashSet::new(),
+                    &mut checker,
+                )?;
+            }
+            if checker.is_rule_enabled(crate::rule_set::Rule::AssignmentOnIfNoElse) {
+                for expression in &owned {
+                    for node in expression.descendants() {
+                        if let Some(binary) = node.cast::<RBinaryExpression>() {
+                            checker.report_diagnostic(
+                                crate::lints::base::assignment_on_if_no_else::assignment_on_if_no_else::assignment_on_if_no_else(
+                                    &binary, &info,
+                                )?,
+                            );
+                        }
+                    }
+                }
+            }
         }
 
         // Only run document-level checks if the examples code has inline
@@ -769,7 +797,7 @@ fn get_checks_roxygen(
                 &chunk.code,
                 &mut checker,
                 &PackageFileAnalysis::default(),
-                None,
+                semantic.as_ref(),
             )?;
         }
 

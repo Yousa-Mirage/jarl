@@ -4,6 +4,10 @@
 
 ### New features
 
+* New rules:
+
+  * `assignment_on_if_no_else` (#605, @christopherkenny)
+
 * Improved rules:
 
   * The `seq2` rule now also reports `seq_len(length(...))` and suggests `seq_along(...)`

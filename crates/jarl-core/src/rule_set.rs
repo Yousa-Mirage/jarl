@@ -272,6 +272,13 @@ declare_rules! {
         fix: Safe,
         min_r_version: None,
     },
+    AssignmentOnIfNoElse => {
+        name: "assignment_on_if_no_else",
+        categories: [Susp],
+        default: Enabled,
+        fix: None,
+        min_r_version: None,
+    },
     ClassEquals => {
         name: "class_equals",
         categories: [Susp],
