@@ -1,6 +1,6 @@
 use crate::diagnostic::{Diagnostic, Fix, Violation};
 use crate::rule_set::Rule;
-use crate::utils::get_function_name;
+use crate::utils::{get_function_name, get_function_namespace_prefix};
 use air_r_syntax::*;
 use biome_rowan::{AstNode, WalkEvent};
 
@@ -14,6 +14,8 @@ pub struct NegativeIndex;
 /// Checks for unary minus in `[]` indices, such as `x[-idx]`, except for
 /// directly negated literals such as `x[-1]`.
 /// A `c()` call is also treated as literal when all its arguments are literals.
+/// Negation inside logical expressions or calls to `which()` and `order()` is
+/// ignored, as in `x[x > -1]` and `x[order(-x)]`.
 ///
 /// ## Why is this bad?
 ///
@@ -85,29 +87,71 @@ pub fn negative_index(ast: &RSubset) -> anyhow::Result<Vec<Diagnostic>> {
     Ok(diagnostics)
 }
 
-/// Skip nested indices to avoid duplicate reports, but inspect their subset objects.
-/// Function bodies do not compute this index.
+/// Find negation that can contribute negative values to this index.
 fn contains_negative(node: &RSyntaxNode) -> anyhow::Result<bool> {
     let mut preorder = node.preorder();
     while let Some(event) = preorder.next() {
         let WalkEvent::Enter(node) = event else {
             continue;
         };
-        if let Some(call) = RCall::cast(node.clone())
-            && is_literal_c_call(&call)?
-        {
-            preorder.skip_subtree();
-            continue;
-        }
+
+        // Nested indices are checked separately, as in `x[y[-idx]]`, but their
+        // objects still contribute to this index, as in `x[(-idx)[1]]`.
+        // Function bodies, as in `x[f(function() -idx)]`, do not compute it.
         if RSubsetArguments::can_cast(node.kind())
             || RSubset2Arguments::can_cast(node.kind())
             || RFunctionDefinition::can_cast(node.kind())
         {
             preorder.skip_subtree();
-        } else if let Some(unary) = RUnaryExpression::cast(node)
-            && unary.operator()?.kind() == RSyntaxKind::MINUS
-        {
-            return Ok(true);
+            continue;
+        }
+
+        match AnyRExpression::cast(node) {
+            // Comparisons and logical operators produce logical values, not
+            // negative indices: `x[x > -n]`, `x[!(-idx)]`, `x[a & -b]`.
+            Some(AnyRExpression::RBinaryExpression(binary))
+                if matches!(
+                    binary.operator()?.kind(),
+                    RSyntaxKind::EQUAL2
+                        | RSyntaxKind::NOT_EQUAL
+                        | RSyntaxKind::LESS_THAN
+                        | RSyntaxKind::LESS_THAN_OR_EQUAL_TO
+                        | RSyntaxKind::GREATER_THAN
+                        | RSyntaxKind::GREATER_THAN_OR_EQUAL_TO
+                        | RSyntaxKind::AND
+                        | RSyntaxKind::AND2
+                        | RSyntaxKind::OR
+                        | RSyntaxKind::OR2
+                ) =>
+            {
+                preorder.skip_subtree();
+            }
+            Some(AnyRExpression::RUnaryExpression(unary)) => match unary.operator()?.kind() {
+                RSyntaxKind::BANG => preorder.skip_subtree(),
+                // Visiting the outer minus first still reports `x[-which(x)]`
+                // and `x[-(x > -n)]`, even though their operands are skipped.
+                RSyntaxKind::MINUS => return Ok(true),
+                _ => {}
+            },
+            Some(AnyRExpression::RCall(call)) => {
+                let function = call.function()?;
+                // `which()` and `order()` return positions, so minus signs in
+                // their arguments do not make negative indices: `x[order(-x)]`.
+                // Only assume this for unqualified calls and the base namespace.
+                let returns_positions = matches!(
+                    get_function_name(function.clone()).as_str(),
+                    "which" | "order"
+                ) && matches!(
+                    get_function_namespace_prefix(function).as_deref(),
+                    None | Some("base::")
+                );
+                // Literal-only `c()` calls, such as `x[c(-1, -2)]`, cannot
+                // contain runtime-dependent negative indices either.
+                if returns_positions || is_literal_c_call(&call)? {
+                    preorder.skip_subtree();
+                }
+            }
+            _ => {}
         }
     }
     Ok(false)

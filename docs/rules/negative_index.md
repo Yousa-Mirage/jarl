@@ -8,6 +8,8 @@
 Checks for unary minus in `[]` indices, such as `x[-idx]`, except for
 directly negated literals such as `x[-1]`.
 A `c()` call is also treated as literal when all its arguments are literals.
+Negation inside logical expressions or calls to `which()` and `order()` is
+ignored, as in `x[x > -1]` and `x[order(-x)]`.
 
 ## Why is this bad?
 

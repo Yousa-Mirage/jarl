@@ -26,6 +26,25 @@ mod tests {
             "x[c(-1, -2)]",
             "x[c(-1, 2)]",
             "x[c(-1, c(-2))]",
+            // Comparisons and logical operators turn their operands into logical indices.
+            "x[idx == -1]",
+            "x[idx != -1]",
+            "x[idx < -limit]",
+            "x[idx <= -limit]",
+            "x[idx > -limit]",
+            "x[idx >= -limit]",
+            "x[!(-idx)]",
+            "x[keep & -idx]",
+            "x[keep && -idx]",
+            "x[keep | -idx]",
+            "x[keep || -idx]",
+            "x[(idx > -1) & !(idx < -limit)]",
+            // Position-generating calls do not pass negative arguments through.
+            "x[which(idx < -1)]",
+            "x[order(-idx)]",
+            "x[base::which(-idx)]",
+            "x[base::order(-idx)]",
+            "x[1 + order(-idx)]",
             "x[((-((1))))]",
             "x[-1, idx]",
             "x[]",
@@ -66,6 +85,47 @@ mod tests {
           |
         1 | x[-which(x == 99)]
           |   --------------- Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
+        assert_snapshot!(snapshot_lint("x[-base::order(idx)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[-base::order(idx)]
+          |   ----------------- Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
+        assert_snapshot!(snapshot_lint("x[-(idx > -1)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[-(idx > -1)]
+          |   ----------- Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
+        // Unknown functions and other namespaces may pass negative values through.
+        assert_snapshot!(snapshot_lint("x[f(-idx)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[f(-idx)]
+          |   ------- Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
+        assert_snapshot!(snapshot_lint("x[pkg::order(-idx)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[pkg::order(-idx)]
+          |   ---------------- Non-literal negative indices may produce unexpected results when empty.
           |
           = help: Handle empty indices explicitly or use a logical index.
         Found 1 error.
