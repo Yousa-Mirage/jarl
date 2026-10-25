@@ -6,7 +6,7 @@
 
 * New rules:
 
-  * `negative_index` (@Yousa-Mirage).
+  * `negative_index` (#771, @Yousa-Mirage).
   * `assignment_on_if_no_else` (#605, @christopherkenny)
   * `todo_comment` (#739, @Yousa-Mirage)
 

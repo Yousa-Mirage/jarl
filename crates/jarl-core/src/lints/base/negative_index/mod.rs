@@ -45,6 +45,10 @@ mod tests {
             "x[base::which(-idx)]",
             "x[base::order(-idx)]",
             "x[1 + order(-idx)]",
+            // `between()` produces logical indices, like comparisons.
+            "x[between(x, -1, 1)]",
+            "x[dplyr::between(x, -lower, upper)]",
+            "x[data.table::between(x, -1, 1)]",
             "x[((-((1))))]",
             "x[-1, idx]",
             "x[]",
@@ -109,6 +113,16 @@ mod tests {
           = help: Handle empty indices explicitly or use a logical index.
         Found 1 error.
         ");
+        assert_snapshot!(snapshot_lint("x[-between(x, -1, 1)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[-between(x, -1, 1)]
+          |   ------------------ Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
         // Unknown functions and other namespaces may pass negative values through.
         assert_snapshot!(snapshot_lint("x[f(-idx)]"), @"
         warning: negative_index
@@ -126,6 +140,16 @@ mod tests {
           |
         1 | x[pkg::order(-idx)]
           |   ---------------- Non-literal negative indices may produce unexpected results when empty.
+          |
+          = help: Handle empty indices explicitly or use a logical index.
+        Found 1 error.
+        ");
+        assert_snapshot!(snapshot_lint("x[pkg::between(x, -1, 1)]"), @"
+        warning: negative_index
+         --> <test>:1:3
+          |
+        1 | x[pkg::between(x, -1, 1)]
+          |   ---------------------- Non-literal negative indices may produce unexpected results when empty.
           |
           = help: Handle empty indices explicitly or use a logical index.
         Found 1 error.

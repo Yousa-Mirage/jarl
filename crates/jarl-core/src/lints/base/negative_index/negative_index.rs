@@ -14,8 +14,8 @@ pub struct NegativeIndex;
 /// Checks for unary minus in `[]` indices, such as `x[-idx]`, except for
 /// directly negated literals such as `x[-1]`.
 /// A `c()` call is also treated as literal when all its arguments are literals.
-/// Negation inside logical expressions or calls to `which()` and `order()` is
-/// ignored, as in `x[x > -1]` and `x[order(-x)]`.
+/// Negation inside logical expressions or calls to `between()`, `which()`, and
+/// `order()` is ignored, as in `x[x > -1]` and `x[order(-x)]`.
 ///
 /// ## Why is this bad?
 ///
@@ -135,19 +135,20 @@ fn contains_negative(node: &RSyntaxNode) -> anyhow::Result<bool> {
             },
             Some(AnyRExpression::RCall(call)) => {
                 let function = call.function()?;
-                // `which()` and `order()` return positions, so minus signs in
-                // their arguments do not make negative indices: `x[order(-x)]`.
-                // Only assume this for unqualified calls and the base namespace.
-                let returns_positions = matches!(
-                    get_function_name(function.clone()).as_str(),
-                    "which" | "order"
-                ) && matches!(
-                    get_function_namespace_prefix(function).as_deref(),
-                    None | Some("base::")
+                // Position-generating calls and `between()` do not pass negative
+                // arguments through: `x[order(-x)]`, `x[between(x, -1, 1)]`.
+                // Only assume this for unqualified calls and known namespaces.
+                let skips_negative_arguments = matches!(
+                    (
+                        get_function_name(function.clone()).as_str(),
+                        get_function_namespace_prefix(function).as_deref()
+                    ),
+                    ("which" | "order", None | Some("base::"))
+                        | ("between", None | Some("dplyr::" | "data.table::"))
                 );
                 // Literal-only `c()` calls, such as `x[c(-1, -2)]`, cannot
                 // contain runtime-dependent negative indices either.
-                if returns_positions || is_literal_c_call(&call)? {
+                if skips_negative_arguments || is_literal_c_call(&call)? {
                     preorder.skip_subtree();
                 }
             }
