@@ -15,6 +15,7 @@ pub(crate) mod duplicated_arguments;
 pub(crate) mod duplicated_function_definition;
 pub(crate) mod empty_assignment;
 pub(crate) mod empty_file;
+pub(crate) mod empty_subset;
 pub(crate) mod equals_na;
 pub(crate) mod equals_nan;
 pub(crate) mod equals_null;

@@ -7,6 +7,7 @@
 * New rules:
 
   * `assignment_on_if_no_else` (#605, @christopherkenny)
+  * `empty_subset` (@Yousa-Mirage).
   * `todo_comment` (#739, @Yousa-Mirage)
 
 * Improved rules:
