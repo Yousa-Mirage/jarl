@@ -25,6 +25,10 @@
 
 ### Bug fixes
 
+* `for_loop_index` now detects reused variables in nested expressions,
+  including function definitions and variable subscripts, while ignoring
+  argument labels and fixed field names (#752, @Yousa-Mirage).
+
 * Prevent `unused_object` from reporting objects exported by `exportPattern()`
   (#711, @Yousa-Mirage).
 
