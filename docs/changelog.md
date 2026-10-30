@@ -6,6 +6,7 @@
 
 * New rules:
 
+  * `apply_paste` (#563)
   * `assignment_on_if_no_else` (#605, @christopherkenny)
   * `function_return` (#750)
   * `todo_comment` (#739, @Yousa-Mirage)
