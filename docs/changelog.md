@@ -41,6 +41,9 @@
   including function definitions and variable subscripts, while ignoring
   argument labels and fixed field names (#752, @Yousa-Mirage).
 
+* Fix `system_file` diagnostics and safe fixes for nested `file.path()` calls,
+  preserving arguments and namespaces (#781, @Yousa-Mirage).
+
 * Prevent `unused_object` from reporting objects exported by `exportPattern()`
   (#711, @Yousa-Mirage).
 
